@@ -313,8 +313,11 @@ def check_second_order(blocks, all_words, sentences):
         if re.match(r"^Here(’s|'s| is| are)\b", b["text"]):
             here_openers.append({"line": b["line"], "text": b["text"][:70]})
 
-    # 3. Three-clause metronome paragraphs
+    # 3. Three-clause metronome paragraphs (near-misses recorded separately;
+    # a paragraph-level gate is blind to single-sentence faults, so anything
+    # in the borderline zone gets surfaced for a human read)
     three_clause = []
+    three_clause_borderline = []
     for b in prose:
         sents = split_sentences(b["text"])
         if len(sents) < 3:
@@ -322,10 +325,12 @@ def check_second_order(blocks, all_words, sentences):
         multi = [s for s in sents
                  if s.count(",") >= 2 and len(words_of(s)) >= 12]
         frac = len(multi) / len(sents)
+        entry = {"line": b["line"], "fraction": round(frac, 2),
+                 "sentences": len(sents)}
         if frac >= THRESHOLDS["three_clause_fraction"]:
-            three_clause.append({"line": b["line"],
-                                 "fraction": round(frac, 2),
-                                 "sentences": len(sents)})
+            three_clause.append(entry)
+        elif frac >= THRESHOLDS["three_clause_fraction"] * 0.66:
+            three_clause_borderline.append(entry)
 
     # 4. False-balance framing
     fb = 0
@@ -403,13 +408,18 @@ def check_second_order(blocks, all_words, sentences):
             if idx >= 0:
                 key_insight.append({"line": b["line"], "text": opener})
 
-    # 10. Sentence-length flat paragraphs
+    # 10. Sentence-length flat paragraphs (with a borderline zone)
     flat = []
+    flat_borderline = []
     for b in prose:
         sents = split_sentences(b["text"])
         lens = [len(words_of(s)) for s in sents if words_of(s)]
-        if len(lens) >= 3 and statistics.stdev(lens) < THRESHOLDS["flat_paragraph_sd_min"]:
-            flat.append({"line": b["line"], "lengths": lens})
+        if len(lens) >= 3:
+            sd = statistics.stdev(lens)
+            if sd < THRESHOLDS["flat_paragraph_sd_min"]:
+                flat.append({"line": b["line"], "lengths": lens})
+            elif sd < THRESHOLDS["flat_paragraph_sd_min"] * 1.25:
+                flat_borderline.append({"line": b["line"], "sd": round(sd, 2)})
 
     # 11. Opening-word repetition
     firsts = []
@@ -464,6 +474,7 @@ def check_second_order(blocks, all_words, sentences):
         "h2_question_pct": round(h2_q_pct, 1),
         "here_openers": here_openers,
         "three_clause_paragraphs": three_clause,
+        "three_clause_borderline": three_clause_borderline,
         "false_balance": fb_examples,
         "false_balance_per_1k": round(fb_per_1k, 2),
         "hedge_windows": hedge_windows,
@@ -474,6 +485,7 @@ def check_second_order(blocks, all_words, sentences):
         "capsule_opener_pct": round(capsule_pct, 1),
         "key_insight_openers": key_insight,
         "flat_paragraphs": flat,
+        "flat_borderline": flat_borderline,
         "spliced_triads": spliced,
         "opening_word_top3": top3,
         "opening_word_top3_pct": round(top3_pct, 1),
@@ -548,6 +560,65 @@ def check_hygiene(lines):
 
 
 # ---------------------------------------------------------------------------
+# Borderline warnings
+# ---------------------------------------------------------------------------
+
+
+def collect_warnings(first, second):
+    """Passed-but-close results worth a human read-aloud. Advisory only;
+    warnings never affect verdicts. Max-style checks warn inside the top 20%
+    of their allowance, min-style checks within 10% above their floor,
+    count-style checks exactly at their limit."""
+    w = []
+
+    def near_max(name, value, limit, factor=0.8):
+        if value <= limit and value > limit * factor:
+            w.append({"check": name, "value": value, "limit": limit})
+
+    def near_min(name, value, floor, factor=1.1):
+        if value >= floor and value < floor * factor:
+            w.append({"check": name, "value": value, "floor": floor})
+
+    if first["checks"]["trigger_density"]:
+        near_max("trigger_density_per_1k", first["trigger_density_per_1k"],
+                 THRESHOLDS["trigger_density_per_1k"])
+    if first["ttr_applicable"] and first["checks"]["ttr"]:
+        near_min("ttr", first["ttr"], THRESHOLDS["ttr_min"])
+    if first["checks"]["burstiness"]:
+        near_min("burstiness", first["burstiness"], THRESHOLDS["burstiness_min"])
+    if second["checks"]["h2_question_cadence"]:
+        near_max("h2_question_pct", second["h2_question_pct"],
+                 THRESHOLDS["h2_question_pct_max"])
+    if (second["checks"]["here_openers"]
+            and len(second["here_openers"]) == THRESHOLDS["here_openers_max"]):
+        w.append({"check": "here_openers_at_limit",
+                  "value": len(second["here_openers"])})
+    if second["checks"]["false_balance"]:
+        near_max("false_balance_per_1k", second["false_balance_per_1k"],
+                 THRESHOLDS["false_balance_per_1k_max"])
+    if (second["checks"]["wrapup_questions"]
+            and len(second["wrapup_questions"]) == THRESHOLDS["wrapup_questions_max"]):
+        w.append({"check": "wrapup_questions_at_limit",
+                  "value": len(second["wrapup_questions"])})
+    if second["checks"]["capsule_transitions"]:
+        near_max("capsule_opener_pct", second["capsule_opener_pct"],
+                 THRESHOLDS["capsule_opener_pct_max"])
+    if second["opening_word_applicable"] and second["checks"]["opening_word_repetition"]:
+        near_max("opening_word_top3_pct", second["opening_word_top3_pct"],
+                 THRESHOLDS["opening_word_top3_pct_max"])
+    if second["paragraph_sd_applicable"] and second["checks"]["paragraph_shape"]:
+        near_min("paragraph_sd", second["paragraph_sd"],
+                 THRESHOLDS["paragraph_sd_min"])
+    for item in second["three_clause_borderline"]:
+        w.append({"check": "three_clause_borderline", "line": item["line"],
+                  "fraction": item["fraction"]})
+    for item in second["flat_borderline"]:
+        w.append({"check": "flat_paragraph_borderline", "line": item["line"],
+                  "sd": item["sd"]})
+    return w
+
+
+# ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
 
@@ -580,6 +651,7 @@ def analyse_file(path):
         "first_order": first,
         "second_order": second,
         "hygiene": hygiene,
+        "warnings": collect_warnings(first, second),
         "verdict": verdicts,
     }
 
@@ -673,6 +745,13 @@ def render_markdown(report):
     out.append("- Ligatures: %d [%s]" % (h["ligatures"]["count"], fmt_check(h["checks"]["ligatures"])))
     out.append("- Colons in headings: %d [%s]" % (h["heading_colons"]["count"], fmt_check(h["checks"]["heading_colons"])))
     out.append("")
+    if report["warnings"]:
+        out.append("### Borderline (passed, read these aloud)")
+        for wn in report["warnings"]:
+            detail = ", ".join("%s %s" % (k, v) for k, v in wn.items()
+                               if k != "check")
+            out.append("- %s (%s)" % (wn["check"], detail))
+        out.append("")
     out.append("### Verdict")
     out.append("First-order: %s | Second-order: %s | Hygiene: %s | Overall: %s" % (
         fmt_check(v["first_order"]), fmt_check(v["second_order"]),

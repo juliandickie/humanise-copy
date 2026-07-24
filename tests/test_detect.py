@@ -161,6 +161,15 @@ class TestSplicedTriadRegression(unittest.TestCase):
         r = self.run_on(ASCOT_LEAD_REPAIRED)
         self.assertEqual(len(r["second_order"]["spliced_triads"]), 0)
 
+    def test_repaired_lead_surfaces_as_borderline(self):
+        # The repaired lead sits at 1 of 3 multi-clause sentences (0.33),
+        # under the 0.5 gate. It must pass the check but appear in the
+        # borderline warnings so a human reads it aloud.
+        r = self.run_on(ASCOT_LEAD_REPAIRED)
+        self.assertTrue(r["second_order"]["checks"]["three_clause_rhythm"])
+        self.assertIn("three_clause_borderline",
+                      [w["check"] for w in r["warnings"]])
+
 
 class TestCleanSamplePasses(unittest.TestCase):
     """Human-shaped writing must not trip the detector."""
@@ -186,6 +195,13 @@ class TestCleanSamplePasses(unittest.TestCase):
         self.assertFalse(self.report["first_order"]["ttr_applicable"])
         self.assertFalse(self.report["second_order"]["opening_word_applicable"])
         self.assertFalse(self.report["second_order"]["paragraph_sd_applicable"])
+
+    def test_borderline_warnings_are_advisory(self):
+        # The crown-prep paragraph carries one long multi-clause sentence in
+        # three (0.33): a borderline warning, and the verdict stays PASS.
+        self.assertIn("three_clause_borderline",
+                      [w["check"] for w in self.report["warnings"]])
+        self.assertTrue(self.report["verdict"]["overall"])
 
 
 if __name__ == "__main__":

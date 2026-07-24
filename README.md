@@ -8,9 +8,12 @@ verify loop: no clean detector report, no "done".
 
 ## Status
 
-v0.1.0, built and test-verified 2026-07-24. Local only for now: not yet a git
-repo, not yet on GitHub or a marketplace, and the two integration edits in
-sibling repos are uncommitted. See Next Steps.
+v0.2.0, built and test-verified 2026-07-24, live at
+github.com/juliandickie/humanise-copy (private). v0.2.0 adds the
+spliced-subject-triad check, the read-aloud naturalness doctrine, and the
+borderline warning band, all from the first day of real-copy use. Both
+sibling-repo integrations (copy-editing-sweeps handoff, idd-writing-style
+pre-ship pointer) are committed and pushed.
 
 ## Why it exists
 

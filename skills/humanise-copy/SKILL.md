@@ -62,8 +62,10 @@ python3 scripts/detect.py THE-FILE.md --format markdown
 Then annotate: mark every flagged item as tell or deliberate (see the
 whitelist mechanic below) and quote the flagged lines. If the file mixes
 production notes with page copy (a copy doc with a drafting header), judge
-flags only against the copy that ships. Deliver the report with the verdict
-format at the end of this file.
+flags only against the copy that ships. The report may end with a Borderline
+section, checks that passed but landed close to their gate; read those lines
+aloud before shipping, they are where the last misses hide. Deliver the
+report with the verdict format at the end of this file.
 
 ### Mode B - Fix (default)
 

@@ -32,6 +32,12 @@ inside `scripts/detect.py`. Keep the two in sync if either grows.
 | Type-Token Ratio | fail below 0.40 on 400+ word docs | Repetitive vocabulary reads machine-made |
 | Burstiness (sentence-length SD divided by mean) | fail below 0.30 | Humans mix short punches with long builds; models write medium everywhere |
 
+TTR calibration - the 0.40 floor is calibrated for editorial long-form.
+Conversion copy that deliberately mirrors its offer nouns (the fixed price,
+the land check, the certificate) reads low by design; judge whether the
+repeated words are load-bearing offer language or filler before treating a
+low TTR as a tell.
+
 ## Repair discipline
 
 1. Delete before you replace. Most throat-clearers, signposts, and wrap-ups

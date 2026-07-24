@@ -34,6 +34,10 @@ when used deliberately (see the asset table at the end).
 - Answer-shaped everything: if every section opens with a one-line answer
   followed by three support sentences, the piece was written to a template
   even if each section passes individually.
+- Enumeration commas: the three-clause check counts commas, so a dense list
+  of concrete specifics ("Flooding, sewer lines, easements, zoning") flags
+  as metronome. Read the flagged paragraph; clause chains are a tell, lists
+  of specifics are specificity doing its job.
 
 ## Asset-aware application
 

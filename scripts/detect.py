@@ -433,6 +433,31 @@ def check_second_order(blocks, all_words, sentences):
     para_sd_applicable = len(para_lens) >= 8
     para_sd = statistics.stdev(para_lens) if len(para_lens) >= 2 else 0.0
 
+    # 13. Spliced subject triads - "It runs..., it puts..., and it ends..."
+    # The same pronoun subject restated across comma-spliced clauses reads
+    # machine-tightened; a natural writer shares the verbs under one subject
+    # or splits the sentence.
+    pronouns = ("it", "we", "you", "they", "he", "she", "i")
+    spliced = []
+    for b in prose:
+        for sent in split_sentences(b["text"]):
+            segs = [seg.strip() for seg in sent.split(",") if seg.strip()]
+            if len(segs) < 3:
+                continue
+            starts = []
+            for seg in segs:
+                w = words_of(seg)
+                if not w:
+                    continue
+                first = w[0]
+                if first in ("and", "but", "so", "then") and len(w) > 1:
+                    first = w[1]
+                starts.append(first)
+            if len(starts) < 3:
+                continue
+            if any(starts[1:].count(p) >= 2 for p in pronouns):
+                spliced.append({"line": b["line"], "text": sent[:70]})
+
     return {
         "h2_total": len(h2s),
         "h2_questions": h2_q,
@@ -449,6 +474,7 @@ def check_second_order(blocks, all_words, sentences):
         "capsule_opener_pct": round(capsule_pct, 1),
         "key_insight_openers": key_insight,
         "flat_paragraphs": flat,
+        "spliced_triads": spliced,
         "opening_word_top3": top3,
         "opening_word_top3_pct": round(top3_pct, 1),
         "opening_word_applicable": ow_applicable,
@@ -466,6 +492,7 @@ def check_second_order(blocks, all_words, sentences):
             "capsule_transitions": capsule_pct <= THRESHOLDS["capsule_opener_pct_max"],
             "key_insight_openers": len(key_insight) == 0,
             "flat_paragraphs": len(flat) == 0,
+            "spliced_triads": len(spliced) == 0,
             "opening_word_repetition": (not ow_applicable) or top3_pct <= THRESHOLDS["opening_word_top3_pct_max"],
             "paragraph_shape": (not para_sd_applicable) or para_sd >= THRESHOLDS["paragraph_sd_min"],
         },
@@ -624,6 +651,10 @@ def render_markdown(report):
     out.append("- Flat paragraphs (sentence-length SD < %.0f): %d [%s]" % (
         THRESHOLDS["flat_paragraph_sd_min"], len(s["flat_paragraphs"]),
         fmt_check(s["checks"]["flat_paragraphs"])))
+    out.append("- Spliced subject triads: %d [%s]" % (
+        len(s["spliced_triads"]), fmt_check(s["checks"]["spliced_triads"])))
+    for sp in s["spliced_triads"]:
+        out.append("    line %d: %s" % (sp["line"], sp["text"]))
     ow_note = "" if s["opening_word_applicable"] else " (n/a under 15 sentences)"
     out.append("- Opening-word top-3 share: %.1f%% [%s, limit %.0f%%]%s" % (
         s["opening_word_top3_pct"],

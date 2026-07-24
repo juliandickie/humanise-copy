@@ -24,6 +24,7 @@ when used deliberately (see the asset table at the end).
 | 8 | Capsule transitions - sections opening "First,..." "Next,..." "Additionally,..." | above 50% of section openers | Bury the transition inside the sentence, or trust the heading to carry the sequence |
 | 9 | Insight telegraphing - "The key insight is...", "What's important here is..." | any | Delete the frame, keep the insight. The sentence is stronger standing alone |
 | 10 | Rhythmic flatness | flat paragraphs (sentence-length SD under 4), opening-word top-3 share above 25%, paragraph-shape SD under 25 on 8+ paragraphs | Vary deliberately: a one-line paragraph after a dense one, different sentence openers, unequal section weights |
+| 11 | Spliced subject triads - "It runs..., it puts..., and it ends..." | the same pronoun subject restated 2 or more times across comma-spliced clauses in one sentence | Share the verbs under one subject ("It runs in a fixed order and puts everything in writing"), vary the subjects, or split the sentence |
 
 ## Manual checks the script skips
 
@@ -38,6 +39,11 @@ when used deliberately (see the asset table at the end).
   of concrete specifics ("Flooding, sewer lines, easements, zoning") flags
   as metronome. Read the flagged paragraph; clause chains are a tell, lists
   of specifics are specificity doing its job.
+- Read-aloud naturalness: over-tightened prose drops the small words a
+  speaker keeps ("signed off on" clipped to "signed off", missing
+  connectives and particles). Read the copy aloud; if a sentence cannot be
+  said naturally the way it is written, restore the idiom. Editing past
+  natural is itself a tell, and it hides in sentences no threshold flags.
 
 ## Asset-aware application
 

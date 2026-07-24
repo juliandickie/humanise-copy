@@ -108,12 +108,58 @@ class TestFixtureDetection(unittest.TestCase):
     def test_key_insight_opener(self):
         self.assertEqual(len(self.second["key_insight_openers"]), 1)
 
+    def test_spliced_triads(self):
+        # The four planted metronome sentences each restate "it" twice
+        # across comma splices.
+        self.assertEqual(len(self.second["spliced_triads"]), 4)
+
     def test_hygiene_counts(self):
         self.assertEqual(self.hygiene["em_dashes"]["count"], 4)
         self.assertEqual(self.hygiene["curly_punctuation"]["count"], 1)
         self.assertEqual(self.hygiene["en_dashes"]["count"], 0)
         self.assertEqual(self.hygiene["tm_r_c_glyphs"]["count"], 0)
         self.assertEqual(self.hygiene["heading_colons"]["count"], 0)
+
+
+ASCOT_LEAD_ORIGINAL = (
+    "Most building projects go wrong in the paperwork, not the construction. "
+    "Our process exists to stop that. It runs in a fixed order, it puts "
+    "everything in writing, and it ends with a building the certifier has "
+    "signed off, at the price we agreed at the start.\n"
+)
+
+ASCOT_LEAD_REPAIRED = (
+    "Most building projects go wrong in the paperwork, not the construction. "
+    "Our process exists to stop that. It runs in a fixed order, everything "
+    "goes in writing, and it finishes with a certified building at the price "
+    "we agreed at the start.\n"
+)
+
+
+class TestSplicedTriadRegression(unittest.TestCase):
+    """Julian's ear caught this sentence on real copy after the detector and
+    an eyes-on pass both missed it. The restated-pronoun splice is now a
+    check; the repaired form must stay clean."""
+
+    def run_on(self, text):
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8")
+        tmp.write(text)
+        tmp.close()
+        try:
+            return detect.analyse_file(tmp.name)
+        finally:
+            Path(tmp.name).unlink(missing_ok=True)
+
+    def test_original_lead_flags(self):
+        r = self.run_on(ASCOT_LEAD_ORIGINAL)
+        triads = r["second_order"]["spliced_triads"]
+        self.assertEqual(len(triads), 1)
+        self.assertIn("It runs in a fixed order", triads[0]["text"])
+
+    def test_repaired_lead_clean(self):
+        r = self.run_on(ASCOT_LEAD_REPAIRED)
+        self.assertEqual(len(r["second_order"]["spliced_triads"]), 0)
 
 
 class TestCleanSamplePasses(unittest.TestCase):

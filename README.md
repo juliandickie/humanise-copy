@@ -8,7 +8,7 @@ verify loop: no clean detector report, no "done".
 
 ## Status
 
-v0.2.0, public at github.com/juliandickie/humanise-copy (MIT), listed in the
+v0.3.0, public at github.com/juliandickie/humanise-copy (MIT), listed in the
 outfit and loadout marketplaces. The spliced-subject-triad check, read-aloud
 naturalness doctrine, and borderline warning band all came from the first day
 of real-copy use. Proven at fleet scale 2026-07-25: ~200 copy surfaces
@@ -23,8 +23,9 @@ repair. Eight agents passed the detector and still shipped telegraphese,
 converged tics, chop, and orphaned pronouns. Five of those failure modes are
 now mechanical checks (12 to 16), the rest are repair moves in reference 03,
 and the read-aloud gate is a numbered Mode B step plus a required line in the
-verdict format. The working tree is ahead of the published 0.2.0 cache; a
-version bump and re-publish are Julian's call.
+verdict format. Structure that is search and answer-engine optimisation is
+routed to claude-seo rather than repaired, and the detector raises that flag
+itself.
 
 ## Why it exists
 

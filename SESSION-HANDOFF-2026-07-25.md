@@ -6,7 +6,7 @@ Previous handoff - none. This repo was born this session.
 
 Build a voice-preserving de-AI skill (detect and repair the tell-tale signs of AI generation without flattening brand voice), ship it as a public plugin, wire it into the copy pipeline, and run it across the Pro Marketing client fleet plus the Ascot RE production site.
 
-## State - verified against git, live URLs and detector runs as of 2026-07-25 ~18:10 AEST, session fb149135
+## State - verified against git, live URLs and detector runs as of 2026-07-25 about 6.10pm AEST, session fb149135
 
 - code/humanise-copy - PUBLIC at github.com/juliandickie/humanise-copy (MIT), main pushed. v0.2.0: detector (~30 checks incl. spliced-triad + borderline band), 4 references, 20 unit tests green, RED/GREEN evidence in tests/. Listed in BOTH outfit and loadout marketplaces (installed, loads from the outfit cache).
 - copy-school - copy-editing-sweeps handoff row committed + pushed (2154097, ed8eb13), copy-editing-sweeps.zip rebuilt. Julian's claude.ai UPLOAD of that zip is STILL PENDING. The installed marketplace clone + cache were synced live.

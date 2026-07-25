@@ -3,8 +3,17 @@
 First three production-scale runs of the skill (Ascot Homes + Scallywags demos,
 Ascot C&I copy docs, Ascot RE production site): 106 + 87 surfaces measured,
 ~620 sentence repairs via eight Sonnet repair agents plus main-session ear QA.
-Everything below is observed, not hypothetical. TODO: fold the failure modes
-into references/03 and SKILL.md Common Mistakes (open work item 1).
+Everything below is observed, not hypothetical.
+
+FOLDED IN 2026-07-25 (same day, later session). Items 1 to 7 are now covered:
+tic convergence, purpose-clause amputation, staccato and the two opener
+patterns became mechanical checks 12 to 16 with regression tests built from
+the sentences below; telegraphese, wrong connectives, danglers and
+meaning-adjacent rewrites became numbered repair moves in reference 03,
+because a stdlib check for them would need part-of-speech tagging and would
+over-report. The read-aloud gate is now Mode B step 7 and a required line in
+the verdict format. See the closing section of this note for what the
+calibration and the with-guidance run found.
 
 ## Repair-agent failure modes (all detector-invisible, caught only by ear)
 
@@ -67,3 +76,49 @@ into references/03 and SKILL.md Common Mistakes (open work item 1).
   already uploaded" independently confirmed the change surface.
 - Unquoted heredocs mangle backslash escapes when writing code from bash;
   quote the delimiter.
+
+## Fold-in results (2026-07-25, later session)
+
+Calibration, 16 files of already-accepted copy (the 14 repaired Ascot RE
+insights plus the two C&I copy docs, about 19,000 words):
+
+- Two findings total. Tics, purpose-clause amputation and staccato returned
+  zero, so those three cost nothing in false positives.
+- One finding initially read as a true positive, CORRECTED by Julian the same
+  day: switch-property-managers-qld.md line 56 opens four consecutive
+  sentences with "Ask" under the heading "What should I look for in a new
+  property manager?". That is an answer block and the parallel imperatives
+  are what make it extractable, so it is deliberate SEO and answer-engine
+  optimisation, not a residual. The check now exempts content-word runs under
+  question headings automatically (advisory warning, never a fail) and
+  reference 02 carries the doctrine. Worth keeping: the fleet run's own
+  "imperative-verb variety" fix is right for a run in ORDINARY prose and
+  wrong for one in an answer block, and nothing in the note distinguished
+  them until now. The document-wide opening-word share still read 16.4
+  percent against a 25 percent limit, which remains a real blind spot for
+  runs that are NOT answer blocks.
+- One judgment-class over-report: "It is no longer 'can you find me a
+  tenant'. It is 'who manages the tenancy well'." is a deliberate
+  not-this-but-that pair, not an echo. Now documented in reference 02 under
+  "Where these checks over-report".
+
+With-guidance run, three fresh Sonnet agents on one draft built to tempt all
+seven failure modes (three opener runs, 72.2 percent opening-word share, a
+comma purpose clause, a flat paragraph):
+
+- Three for three avoided every failure mode. No article amputation, no
+  amputated purpose clause, no chop, no tic, no dangling reference, no
+  meaning drift, no factual drift. All three filled the READ ALOUD line and
+  used it substantively rather than as a checkbox.
+- All three independently converged on the same prescribed moves: possessive,
+  fronted clause and subject change for the opener runs, and the
+  Request/Find out/Check/Confirm ladder for the "Ask" run. Convergence across
+  independent reps is the signal that the wording binds; the baseline for
+  comparison is the eight agents in this note who diverged into seven
+  different failure modes without it.
+- Closest call: one agent dropped articles in the stats sentence ("Vacancy
+  sits near 1.0 percent, median rent has moved..."). Judged NOT telegraphese,
+  because it read the client's own live copy first and matched its
+  construction verbatim. Voice-grounded article choices are not amputation,
+  and the distinction is worth keeping in mind if the check is ever
+  mechanised.

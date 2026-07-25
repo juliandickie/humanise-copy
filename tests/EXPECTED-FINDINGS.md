@@ -47,6 +47,7 @@ tested against a known ground truth.
 | S9 | Third-person voice drift | "Clinicians may find this feature useful." and "Practitioners will appreciate" (exact idd-writing-style Wrong examples) |
 | S10 | False-balance framing (x2) | "while the hardware remains unchanged, the software also delivers"; "While some features are diagnostic, others are also workflow-focused." |
 | S11 | Spliced subject triads (x4) | Each metronome sentence in section one restates "it" twice across comma-spliced clauses ("The software leverages..., it analyzes..., and it flags...") |
+| S12 | Repeated sentence openers | The same section-one paragraph opens four consecutive sentences on "The" with varied second words ("The software / The technology / The platform / The result"). Document-wide opening-word share is a separate, coarser check; this one reads the paragraph |
 
 ### Mechanical hygiene
 

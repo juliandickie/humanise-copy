@@ -95,6 +95,35 @@ ABBREVIATIONS = [
     "approx.", "No.", "U.S.", "a.m.", "p.m.",
 ]
 
+# Candour openers a repair pass reaches for when told to sound human. One is
+# register; the same one three times is a tic the writer cannot hear. Kept
+# distinct from CAPSULE_TRANSITIONS, which are sequencing words and are
+# measured separately on section openers only.
+CONVERSATIONAL_OPENERS = [
+    "honestly", "frankly", "truthfully", "truth be told", "look",
+    "realistically", "admittedly", "granted", "obviously", "clearly",
+    "basically", "sure", "to be fair", "in fairness", "simply put",
+    "put simply", "let's be honest", "let us be honest", "of course",
+]
+
+# Function words. A run sharing one of these is rhythm collapse ("The
+# software... The technology... The platform...") and stays a fail even
+# inside an answer block. The answer-block exemption is for parallel
+# imperatives ("Ask... Check... Confirm..."), which is the structure AI
+# search actually lifts; a repeated determiner never is.
+FUNCTION_WORD_OPENERS = {
+    "the", "a", "an", "this", "that", "these", "those", "it", "its",
+    "they", "we", "you", "he", "she", "there", "here", "his", "her",
+    "their", "our", "your", "my", "i",
+}
+
+# Ability and permission modals. A sentence opening "So <subject> can ..."
+# is a purpose clause that lost its comma, not a consequential "So".
+PURPOSE_MODALS = (
+    r"can|can't|cannot|could|won't|will not|"
+    r"do not have to|don't have to|does not have to|doesn't have to"
+)
+
 THRESHOLDS = {
     "trigger_density_per_1k": 5.0,     # fail above
     "ttr_min": 0.40,                    # fail below (docs >= 400 words)
@@ -109,6 +138,10 @@ THRESHOLDS = {
     "symmetric_list_sd_min": 5.0,       # flag lists below
     "flat_paragraph_sd_min": 4.0,       # flag paragraphs below
     "three_clause_fraction": 0.5,       # flag paragraphs at/above
+    "tic_repeat_max": 2,                # same candour opener, fail above
+    "staccato_run_min": 3,              # consecutive short sentences, flag at
+    "staccato_max_words": 6,            # what counts as short for that run
+    "opener_run_min": 3,                # consecutive same-first-word, flag at
 }
 
 # ---------------------------------------------------------------------------
@@ -468,10 +501,138 @@ def check_second_order(blocks, all_words, sentences):
             if any(starts[1:].count(p) >= 2 for p in pronouns):
                 spliced.append({"line": b["line"], "text": sent[:70]})
 
+    # 14-17. Repair artifacts. Every check above measures the draft; these
+    # measure the repair. Agents dodge the draft's tells by introducing
+    # these, and the fleet run proved the post-repair re-run was blind to
+    # all four. See docs/dev/2026-07-25-fleet-run-learnings.md.
+
+    # 14. Tic convergence - the same candour opener used over and over
+    tic_counts = {}
+    for b in prose:
+        for sent in split_sentences(b["text"]):
+            m = re.match(r"^([A-Za-z][A-Za-z'’ ]{0,18}?),\s", sent)
+            if not m:
+                continue
+            opener = m.group(1).lower()
+            if opener in CONVERSATIONAL_OPENERS:
+                entry = tic_counts.setdefault(
+                    opener, {"opener": opener, "count": 0, "lines": []})
+                entry["count"] += 1
+                entry["lines"].append(b["line"])
+    tics = [e for e in tic_counts.values()
+            if e["count"] > THRESHOLDS["tic_repeat_max"]]
+    tics_at_limit = [e for e in tic_counts.values()
+                     if e["count"] == THRESHOLDS["tic_repeat_max"]]
+
+    # 15. Amputated purpose clauses - ", so they can X" split into "So they
+    # can X." Consequential "So" openers carry no ability modal and pass.
+    amputated = []
+    for b in prose:
+        for sent in split_sentences(b["text"]):
+            if re.match(
+                    r"^So\b(?:\s+[\w'’-]+){0,5}\s+(?:%s)\b" % PURPOSE_MODALS,
+                    sent, re.IGNORECASE):
+                amputated.append({"line": b["line"], "text": sent[:70]})
+
+    # 16. Staccato runs - three or more consecutive short sentences. The
+    # variance checks (burstiness, flat paragraphs, paragraph SD) all
+    # IMPROVE when copy is chopped this way, so they cannot see it.
+    staccato = []
+    for b in prose:
+        lens = [len(words_of(s)) for s in split_sentences(b["text"])]
+        run = []
+        for length in lens + [None]:
+            if length is not None and 0 < length <= THRESHOLDS["staccato_max_words"]:
+                run.append(length)
+                continue
+            if len(run) >= THRESHOLDS["staccato_run_min"]:
+                staccato.append({"line": b["line"], "lengths": list(run)})
+            run = []
+
+    # 17-18. Local opener runs. The opening-word check measures share across
+    # the whole document, so a run packed into one paragraph hides inside a
+    # passing percentage. These two read the paragraph instead.
+    #   - Three or more consecutive sentences on one first word with VARIED
+    #     second words is accidental repetition ("Ask for... Ask how... Ask
+    #     whether..."). Identical second words are deliberate anaphora
+    #     ("You get... You get... You get...") and stay.
+    #   - A pair sharing two words is the local-edit echo. Pairs sitting
+    #     inside a flagged run are that run's finding, not a second one.
+    # Prose under a question heading is an answer block, the unit AI search
+    # lifts (claude-seo's seo-geo skill: self-contained, extractable without
+    # context, 134 to 167 words). Parallel imperatives are what make it
+    # liftable, so a run there is structure doing its job. It is recorded and
+    # warned on, never failed. Repetition ACROSS blocks or as the page's
+    # ambient rhythm is still the tell.
+    answer_block_lines = set()
+    under_question = False
+    for b in blocks:
+        if b["type"] == "heading":
+            under_question = b["text"].rstrip().endswith("?")
+        elif b["type"] == "prose" and under_question:
+            answer_block_lines.add(b["line"])
+
+    opener_runs = []
+    answer_block_openers = []
+    echoes = []
+    for b in prose:
+        sents = split_sentences(b["text"])
+        tokens = [words_of(s) for s in sents]
+        firsts = [w[0] if w else None for w in tokens]
+        pairs = [" ".join(w[:2]) if len(w) >= 2 else None for w in tokens]
+
+        covered = set()
+        i = 0
+        while i < len(firsts):
+            if firsts[i] is None:
+                i += 1
+                continue
+            j = i
+            while j + 1 < len(firsts) and firsts[j + 1] == firsts[i]:
+                j += 1
+            if j - i + 1 >= THRESHOLDS["opener_run_min"]:
+                covered.update(range(i, j + 1))
+                if len(set(pairs[i:j + 1])) > 1:
+                    entry = {"line": b["line"], "opener": firsts[i],
+                             "count": j - i + 1, "text": sents[i][:70]}
+                    if (b["line"] in answer_block_lines
+                            and firsts[i] not in FUNCTION_WORD_OPENERS):
+                        answer_block_openers.append(entry)
+                    else:
+                        opener_runs.append(entry)
+            i = j + 1
+
+        i = 0
+        while i < len(pairs):
+            if pairs[i] is None:
+                i += 1
+                continue
+            j = i
+            while j + 1 < len(pairs) and pairs[j + 1] == pairs[i]:
+                j += 1
+            if j - i + 1 == 2 and i not in covered:
+                echoes.append({"line": b["line"], "opener": pairs[i],
+                               "text": sents[i][:70]})
+            i = j + 1
+
+    # 19. Answer-engine routing signal. Question-cadence headings are a tell
+    # in a narrative article and the entire point of an answer-engine page,
+    # and nothing structural separates the two: the planted fixture and a
+    # real Ascot insights page both run 100 percent question headings. So
+    # this decides nothing. It raises a flag saying "ask claude-seo", and the
+    # editorial layer settles it.
+    seo_signals = {
+        "question_heading_pct": round(h2_q_pct, 1),
+        "answer_blocks": len(answer_block_lines),
+        "looks_answer_engine": (h2_q_pct >= 50.0
+                                and len(answer_block_lines) >= 2),
+    }
+
     return {
         "h2_total": len(h2s),
         "h2_questions": h2_q,
         "h2_question_pct": round(h2_q_pct, 1),
+        "seo_signals": seo_signals,
         "here_openers": here_openers,
         "three_clause_paragraphs": three_clause,
         "three_clause_borderline": three_clause_borderline,
@@ -487,6 +648,13 @@ def check_second_order(blocks, all_words, sentences):
         "flat_paragraphs": flat,
         "flat_borderline": flat_borderline,
         "spliced_triads": spliced,
+        "conversational_tics": tics,
+        "conversational_tics_at_limit": tics_at_limit,
+        "amputated_purpose_clauses": amputated,
+        "staccato_runs": staccato,
+        "repeated_openers": opener_runs,
+        "answer_block_openers": answer_block_openers,
+        "adjacent_echoes": echoes,
         "opening_word_top3": top3,
         "opening_word_top3_pct": round(top3_pct, 1),
         "opening_word_applicable": ow_applicable,
@@ -505,6 +673,11 @@ def check_second_order(blocks, all_words, sentences):
             "key_insight_openers": len(key_insight) == 0,
             "flat_paragraphs": len(flat) == 0,
             "spliced_triads": len(spliced) == 0,
+            "conversational_tics": len(tics) == 0,
+            "amputated_purpose": len(amputated) == 0,
+            "staccato_runs": len(staccato) == 0,
+            "repeated_openers": len(opener_runs) == 0,
+            "adjacent_echoes": len(echoes) == 0,
             "opening_word_repetition": (not ow_applicable) or top3_pct <= THRESHOLDS["opening_word_top3_pct_max"],
             "paragraph_shape": (not para_sd_applicable) or para_sd >= THRESHOLDS["paragraph_sd_min"],
         },
@@ -609,6 +782,16 @@ def collect_warnings(first, second):
     if second["paragraph_sd_applicable"] and second["checks"]["paragraph_shape"]:
         near_min("paragraph_sd", second["paragraph_sd"],
                  THRESHOLDS["paragraph_sd_min"])
+    if second["seo_signals"]["looks_answer_engine"]:
+        w.append({"check": "consult_claude_seo",
+                  "question_heading_pct": second["seo_signals"]["question_heading_pct"],
+                  "answer_blocks": second["seo_signals"]["answer_blocks"]})
+    for item in second["answer_block_openers"]:
+        w.append({"check": "answer_block_opener_run", "line": item["line"],
+                  "opener": item["opener"], "value": item["count"]})
+    for item in second["conversational_tics_at_limit"]:
+        w.append({"check": "candour_opener_at_limit", "opener": item["opener"],
+                  "value": item["count"]})
     for item in second["three_clause_borderline"]:
         w.append({"check": "three_clause_borderline", "line": item["line"],
                   "fraction": item["fraction"]})
@@ -694,6 +877,12 @@ def render_markdown(report):
         s["h2_questions"], s["h2_total"], s["h2_question_pct"],
         fmt_check(s["checks"]["h2_question_cadence"]),
         THRESHOLDS["h2_question_pct_max"]))
+    if s["seo_signals"]["looks_answer_engine"]:
+        out.append("    shape reads answer-engine (%d answer blocks). If this is"
+                   % s["seo_signals"]["answer_blocks"])
+        out.append("    an FAQ or answer-engine page the cadence is deliberate:")
+        out.append("    check claude-seo seo-geo / seo-content and log it as a")
+        out.append("    deliberate keep rather than rewriting the headings.")
     out.append("- \"Here\" paragraph openers: %d [%s, limit %d]" % (
         len(s["here_openers"]), fmt_check(s["checks"]["here_openers"]),
         THRESHOLDS["here_openers_max"]))
@@ -727,6 +916,39 @@ def render_markdown(report):
         len(s["spliced_triads"]), fmt_check(s["checks"]["spliced_triads"])))
     for sp in s["spliced_triads"]:
         out.append("    line %d: %s" % (sp["line"], sp["text"]))
+    out.append("- Repeated candour openers: %d [%s, limit %d each]" % (
+        len(s["conversational_tics"]),
+        fmt_check(s["checks"]["conversational_tics"]),
+        THRESHOLDS["tic_repeat_max"]))
+    for tc in s["conversational_tics"]:
+        out.append("    \"%s,\" x%d (lines %s)" % (
+            tc["opener"], tc["count"],
+            ", ".join(str(n) for n in tc["lines"])))
+    out.append("- Amputated purpose clauses: %d [%s]" % (
+        len(s["amputated_purpose_clauses"]),
+        fmt_check(s["checks"]["amputated_purpose"])))
+    for ap in s["amputated_purpose_clauses"]:
+        out.append("    line %d: %s" % (ap["line"], ap["text"]))
+    out.append("- Staccato runs (%d+ sentences of %d words or fewer): %d [%s]" % (
+        THRESHOLDS["staccato_run_min"], THRESHOLDS["staccato_max_words"],
+        len(s["staccato_runs"]), fmt_check(s["checks"]["staccato_runs"])))
+    for st in s["staccato_runs"]:
+        out.append("    line %d: %s" % (
+            st["line"], " / ".join(str(n) for n in st["lengths"])))
+    out.append("- Repeated sentence openers (%d+ running): %d [%s]" % (
+        THRESHOLDS["opener_run_min"], len(s["repeated_openers"]),
+        fmt_check(s["checks"]["repeated_openers"])))
+    for ro in s["repeated_openers"]:
+        out.append("    line %d: \"%s\" opens %d sentences running" % (
+            ro["line"], ro["opener"], ro["count"]))
+    for ab in s["answer_block_openers"]:
+        out.append("    line %d: \"%s\" x%d inside an answer block, not counted" % (
+            ab["line"], ab["opener"], ab["count"]))
+    out.append("- Adjacent echoes: %d [%s]" % (
+        len(s["adjacent_echoes"]), fmt_check(s["checks"]["adjacent_echoes"])))
+    for ec in s["adjacent_echoes"]:
+        out.append("    line %d: \"%s...\" twice running" % (
+            ec["line"], ec["opener"]))
     ow_note = "" if s["opening_word_applicable"] else " (n/a under 15 sentences)"
     out.append("- Opening-word top-3 share: %.1f%% [%s, limit %.0f%%]%s" % (
         s["opening_word_top3_pct"],

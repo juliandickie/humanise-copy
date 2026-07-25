@@ -113,6 +113,19 @@ class TestFixtureDetection(unittest.TestCase):
         # across comma splices.
         self.assertEqual(len(self.second["spliced_triads"]), 4)
 
+    def test_repeated_openers(self):
+        # S12: the metronome paragraph opens four sentences running on "The".
+        runs = self.second["repeated_openers"]
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(runs[0]["opener"], "the")
+        self.assertEqual(runs[0]["count"], 4)
+
+    def test_signature_so_transition_is_not_an_amputation(self):
+        # W2 "So the question becomes," is an iDD signature transition. It
+        # carries no ability modal, so the purpose-clause check must leave
+        # it alone rather than the skill having to whitelist it back.
+        self.assertEqual(len(self.second["amputated_purpose_clauses"]), 0)
+
     def test_hygiene_counts(self):
         self.assertEqual(self.hygiene["em_dashes"]["count"], 4)
         self.assertEqual(self.hygiene["curly_punctuation"]["count"], 1)
@@ -169,6 +182,341 @@ class TestSplicedTriadRegression(unittest.TestCase):
         self.assertTrue(r["second_order"]["checks"]["three_clause_rhythm"])
         self.assertIn("three_clause_borderline",
                       [w["check"] for w in r["warnings"]])
+
+
+# Observed agent output (left) and the form the repair should have taken
+# (right), lifted from the fleet run's ear-QA findings.
+
+TIC_CONVERGED = (
+    "Honestly, the buyer pool here runs deeper than most sellers expect.\n\n"
+    "Honestly, the timeline is the part people get wrong.\n\n"
+    "Honestly, the price guide is only ever a starting point.\n"
+)
+
+TIC_VARIED = (
+    "The buyer pool here runs deeper than most sellers expect.\n\n"
+    "Timing is the part people get wrong.\n\n"
+    "Treat the price guide as a starting point, nothing more.\n"
+)
+
+TIC_SINGLE = (
+    "Honestly, the buyer pool here runs deeper than most sellers expect.\n\n"
+    "Timing is the part people get wrong.\n\n"
+    "Treat the price guide as a starting point, nothing more.\n"
+)
+
+PURPOSE_AMPUTATED = (
+    "We brief the whole team the week before a campaign goes live. "
+    "So the team can support them.\n"
+)
+
+PURPOSE_ATTACHED = (
+    "We brief the whole team the week before a campaign goes live, so the "
+    "team can support them.\n"
+)
+
+CONSEQUENTIAL_SO = (
+    "The premium runs to $4,500 upfront on top of the subscription. "
+    "So the question becomes whether a single-chair practice sees it back.\n"
+)
+
+STACCATO_CHOPPED = (
+    "You want a builder who has done this exact work before, on a block "
+    "this steep, inside a budget this tight. In your suburb. On your "
+    "budget. Then this is the category.\n"
+)
+
+STACCATO_MERGED = (
+    "You want a builder who has done this exact work before, on a block "
+    "this steep, inside a budget this tight. In your suburb, on your "
+    "budget. Then this is the category you are shopping in.\n"
+)
+
+ECHO_PAIR = (
+    "This guide walks through the five checks that matter before you sign. "
+    "This guide assumes you have already had the place valued.\n"
+)
+
+ECHO_ANAPHORA = (
+    "You get the full written report. You get the comparable sales. "
+    "You get the call with our director.\n"
+)
+
+ECHO_REPAIRED = (
+    "This guide walks through the five checks that matter before you sign. "
+    "It assumes you have already had the place valued.\n"
+)
+
+# Live specimen: switch-property-managers-qld.md line 56 kept four "Ask"
+# openers running after the fleet repair, the ear QA and the detector
+# re-run. Document-wide opening-word share read 16.4 percent (PASS) because
+# a 1,282-word file dilutes a run that sits inside one paragraph.
+OPENER_RUN = (
+    "Ask for a real communication standard, committed to in writing. "
+    "Ask how they monitor and chase arrears, and how quickly. "
+    "Ask how often they inspect and what the written report includes. "
+    "Ask whether they review your rent against the market each year.\n"
+)
+
+# The same run under a question heading is a self-contained answer block, the
+# unit claude-seo's seo-geo skill optimises for (134 to 167 words, extractable
+# without context). Parallel imperatives are what makes it liftable. Julian's
+# call 2026-07-25: "heading questions for SEO optimisation and ask engine".
+OPENER_RUN_ANSWER_BLOCK = (
+    "## What should I look for in a new property manager?\n\n"
+    "Ask for a real communication standard, committed to in writing. "
+    "Ask how they monitor and chase arrears, and how quickly. "
+    "Ask how often they inspect and what the written report includes. "
+    "Ask whether they review your rent against the market each year.\n"
+)
+
+OPENER_RUN_STATEMENT_HEADING = (
+    "## Choosing a property manager\n\n"
+    "Ask for a real communication standard, committed to in writing. "
+    "Ask how they monitor and chase arrears, and how quickly. "
+    "Ask how often they inspect and what the written report includes. "
+    "Ask whether they review your rent against the market each year.\n"
+)
+
+OPENER_RUN_VARIED = (
+    "Ask for a real communication standard, committed to in writing. "
+    "Find out how they monitor and chase arrears, and how quickly. "
+    "Check how often they inspect and what the written report includes. "
+    "Confirm they review your rent against the market each year.\n"
+)
+
+
+class TestRepairArtifactChecks(unittest.TestCase):
+    """The 2026-07-25 fleet run (eight repair agents, ~620 sentence repairs)
+    produced failure modes the detector could not see, because every check it
+    had measured the draft rather than the repair. Each sample below is the
+    observed agent output; each control is the form the repair should have
+    taken. Source: docs/dev/2026-07-25-fleet-run-learnings.md."""
+
+    def run_on(self, text):
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8")
+        tmp.write(text)
+        tmp.close()
+        try:
+            return detect.analyse_file(tmp.name)
+        finally:
+            Path(tmp.name).unlink(missing_ok=True)
+
+    # -- Tic convergence -------------------------------------------------
+    # Two agents independently adopted "Honestly," as their replacement
+    # opener. One is voice; three is a tic the agent cannot hear.
+
+    def test_repeated_conversational_opener_flags(self):
+        r = self.run_on(TIC_CONVERGED)
+        tics = r["second_order"]["conversational_tics"]
+        self.assertEqual(len(tics), 1)
+        self.assertEqual(tics[0]["opener"], "honestly")
+        self.assertEqual(tics[0]["count"], 3)
+        self.assertFalse(r["second_order"]["checks"]["conversational_tics"])
+
+    def test_varied_openers_clean(self):
+        r = self.run_on(TIC_VARIED)
+        self.assertEqual(len(r["second_order"]["conversational_tics"]), 0)
+        self.assertTrue(r["second_order"]["checks"]["conversational_tics"])
+
+    def test_single_conversational_opener_is_voice(self):
+        # One candour opener is a legitimate register choice and must not
+        # flag, or the check would punish the voice it exists to protect.
+        r = self.run_on(TIC_SINGLE)
+        self.assertEqual(len(r["second_order"]["conversational_tics"]), 0)
+
+    # -- Amputated purpose clauses ---------------------------------------
+    # ", so the team can support them" split into a standalone sentence.
+    # Consequential "So X" is fine; a purpose clause left standing is not.
+
+    def test_amputated_purpose_clause_flags(self):
+        r = self.run_on(PURPOSE_AMPUTATED)
+        amputated = r["second_order"]["amputated_purpose_clauses"]
+        self.assertEqual(len(amputated), 1)
+        self.assertIn("So the team can support them", amputated[0]["text"])
+        self.assertFalse(r["second_order"]["checks"]["amputated_purpose"])
+
+    def test_attached_purpose_clause_clean(self):
+        r = self.run_on(PURPOSE_ATTACHED)
+        self.assertEqual(
+            len(r["second_order"]["amputated_purpose_clauses"]), 0)
+
+    def test_consequential_so_not_flagged(self):
+        # "So the question becomes..." carries no ability modal and is a
+        # normal discourse move, not an amputation.
+        r = self.run_on(CONSEQUENTIAL_SO)
+        self.assertEqual(
+            len(r["second_order"]["amputated_purpose_clauses"]), 0)
+
+    # -- Staccato over-splitting -----------------------------------------
+    # Trading metronome for chop. Burstiness and paragraph SD both IMPROVE
+    # when an agent does this, so the existing variance checks are blind.
+
+    def test_staccato_run_flags(self):
+        r = self.run_on(STACCATO_CHOPPED)
+        runs = r["second_order"]["staccato_runs"]
+        self.assertEqual(len(runs), 1)
+        self.assertGreaterEqual(len(runs[0]["lengths"]), 3)
+        self.assertFalse(r["second_order"]["checks"]["staccato_runs"])
+
+    def test_staccato_passes_the_variance_checks(self):
+        # The point of the check: chopped copy scores WELL on burstiness,
+        # which is why it survived the fleet run's detector re-runs.
+        r = self.run_on(STACCATO_CHOPPED)
+        self.assertTrue(r["first_order"]["checks"]["burstiness"])
+
+    def test_merged_run_clean(self):
+        r = self.run_on(STACCATO_MERGED)
+        self.assertEqual(len(r["second_order"]["staccato_runs"]), 0)
+
+    # -- Adjacent echoes --------------------------------------------------
+    # Agents edit sentence-locally, so consecutive sentences drift into the
+    # same opener. A run of exactly two is the local-edit artifact; a run of
+    # three or more is deliberate anaphora and stays.
+
+    def test_adjacent_echo_flags(self):
+        r = self.run_on(ECHO_PAIR)
+        echoes = r["second_order"]["adjacent_echoes"]
+        self.assertEqual(len(echoes), 1)
+        self.assertEqual(echoes[0]["opener"], "this guide")
+        self.assertFalse(r["second_order"]["checks"]["adjacent_echoes"])
+
+    def test_anaphora_run_of_three_not_flagged(self):
+        # "You get X. You get Y. You get Z." is conversion technique. The
+        # global opening-word check owns genuine overuse; this one must not
+        # punish a rhetorical run.
+        r = self.run_on(ECHO_ANAPHORA)
+        self.assertEqual(len(r["second_order"]["adjacent_echoes"]), 0)
+
+    def test_echo_repaired_clean(self):
+        r = self.run_on(ECHO_REPAIRED)
+        self.assertEqual(len(r["second_order"]["adjacent_echoes"]), 0)
+
+    # -- Repeated sentence openers ---------------------------------------
+    # A run of the same opening verb inside one paragraph. The document-wide
+    # opening-word share cannot see it: the run is local, the metric is
+    # global. Varied second words mark accidental repetition; identical
+    # second words mark deliberate anaphora and stay.
+
+    def test_opener_run_flags(self):
+        r = self.run_on(OPENER_RUN)
+        runs = r["second_order"]["repeated_openers"]
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(runs[0]["opener"], "ask")
+        self.assertEqual(runs[0]["count"], 4)
+        self.assertFalse(r["second_order"]["checks"]["repeated_openers"])
+
+    def test_opener_run_invisible_to_document_wide_share(self):
+        # The blind spot that let this survive the fleet run. If this ever
+        # starts failing, the global check has changed and this check's
+        # justification needs re-reading, not deleting.
+        r = self.run_on(OPENER_RUN)
+        self.assertTrue(
+            r["second_order"]["checks"]["opening_word_repetition"])
+
+    def test_imperative_variety_clean(self):
+        # The fleet run's own fix: Request / Find out / Check / Confirm.
+        r = self.run_on(OPENER_RUN_VARIED)
+        self.assertEqual(len(r["second_order"]["repeated_openers"]), 0)
+        self.assertTrue(r["second_order"]["checks"]["repeated_openers"])
+
+    def test_anaphora_not_counted_as_opener_run(self):
+        r = self.run_on(ECHO_ANAPHORA)
+        self.assertEqual(len(r["second_order"]["repeated_openers"]), 0)
+
+    # -- Answer blocks (GEO) ---------------------------------------------
+    # A parallel imperative run under a question heading is extraction
+    # structure, not a tell. It still gets surfaced, because "written well"
+    # is the condition, but it must not fail the gate.
+
+    def test_answer_block_run_does_not_fail(self):
+        r = self.run_on(OPENER_RUN_ANSWER_BLOCK)
+        self.assertTrue(r["second_order"]["checks"]["repeated_openers"])
+        self.assertEqual(len(r["second_order"]["repeated_openers"]), 0)
+
+    def test_answer_block_run_still_surfaces_as_borderline(self):
+        r = self.run_on(OPENER_RUN_ANSWER_BLOCK)
+        blocks = r["second_order"]["answer_block_openers"]
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0]["opener"], "ask")
+        self.assertIn("answer_block_opener_run",
+                      [w["check"] for w in r["warnings"]])
+
+    def test_same_run_under_a_statement_heading_still_fails(self):
+        # The exemption is the answer block, not the sentence shape.
+        r = self.run_on(OPENER_RUN_STATEMENT_HEADING)
+        self.assertEqual(len(r["second_order"]["repeated_openers"]), 1)
+        self.assertFalse(r["second_order"]["checks"]["repeated_openers"])
+
+    def test_opener_run_absorbs_its_inner_echo(self):
+        # "Ask how" twice sits inside the "Ask" run. One finding, not two.
+        r = self.run_on(OPENER_RUN)
+        self.assertEqual(len(r["second_order"]["adjacent_echoes"]), 0)
+
+
+GEO_PAGE = (
+    "## Can I change property managers in Queensland mid-lease?\n\n"
+    "Yes. Your management agreement and the tenancy agreement are separate "
+    "contracts, so ending one does not disturb the other. Check the notice "
+    "period in your current agreement before you sign anything new.\n\n"
+    "## Will I lose rent or pay extra fees when I switch?\n\n"
+    "Usually not. Rent keeps being collected throughout the handover, and the "
+    "bond stays lodged with the Residential Tenancies Authority under the same "
+    "tenancy. Ask the incoming agency to confirm its fees in writing.\n\n"
+    "## How does the handover work, step by step?\n\n"
+    "The incoming agency writes to the outgoing one, collects the ledger, the "
+    "bond details, the keys and the inspection history, and introduces itself "
+    "to the tenant with new payment instructions.\n"
+)
+
+
+class TestSeoRouting(unittest.TestCase):
+    """Question-cadence headings are a tell in a narrative article and the
+    whole point of an answer-engine page. The planted fixture and a real
+    Ascot insights page BOTH run near 100 percent question headings, so no
+    mechanical rule separates them. The detector therefore routes the
+    judgment to claude-seo instead of pretending to settle it."""
+
+    def run_on(self, text):
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8")
+        tmp.write(text)
+        tmp.close()
+        try:
+            return detect.analyse_file(tmp.name)
+        finally:
+            Path(tmp.name).unlink(missing_ok=True)
+
+    def test_geo_page_raises_the_routing_signal(self):
+        r = self.run_on(GEO_PAGE)
+        s = r["second_order"]["seo_signals"]
+        self.assertEqual(s["question_heading_pct"], 100.0)
+        self.assertEqual(s["answer_blocks"], 3)
+        self.assertIn("consult_claude_seo",
+                      [w["check"] for w in r["warnings"]])
+
+    def test_question_cadence_still_reports_honestly(self):
+        # The check does NOT auto-pass on an answer-engine page. There is no
+        # honest mechanical rule separating this from the planted fixture,
+        # and inventing one would let real slop through. The detector reports
+        # 100 percent truthfully; the routing signal tells the skill to log it
+        # as a deliberate keep rather than "repair" the headings.
+        r = self.run_on(GEO_PAGE)
+        self.assertFalse(r["second_order"]["checks"]["h2_question_cadence"])
+        self.assertIn("consult_claude_seo",
+                      [w["check"] for w in r["warnings"]])
+
+    def test_routing_signal_touches_no_other_check(self):
+        r = self.run_on(GEO_PAGE)
+        others = {k: v for k, v in r["second_order"]["checks"].items()
+                  if k != "h2_question_cadence"}
+        self.assertTrue(all(others.values()), msg=str(others))
+
+    def test_prose_without_question_headings_is_not_routed(self):
+        r = self.run_on(ECHO_REPAIRED)
+        self.assertNotIn("consult_claude_seo",
+                         [w["check"] for w in r["warnings"]])
 
 
 class TestCleanSamplePasses(unittest.TestCase):

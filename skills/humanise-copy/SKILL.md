@@ -81,15 +81,58 @@ report with the verdict format at the end of this file.
    ([02-second-order-tells.md](references/02-second-order-tells.md)).
 6. Hygiene pass, always last
    ([04-mechanical-hygiene.md](references/04-mechanical-hygiene.md)).
-7. Verify: re-run the detector. Repeat repair passes until every layer
-   passes or every residual is a logged deliberate keep. The before and
-   after reports both go in the delivery note.
+7. Read the repaired copy aloud, paragraph by paragraph. Repair is itself a
+   generation pass and leaves its own tells; this is the only gate that
+   catches telegraphese, chop, and references that stopped pointing anywhere
+   ([03-voice-preserving-repair.md](references/03-voice-preserving-repair.md),
+   "Repairing without introducing new tells").
+8. Verify: re-run the detector. The re-run is where repair artifacts surface
+   (reference 02, checks 12 to 16), so a first-pass FAIL that becomes a
+   different FAIL is progress, not a loop. Repeat until every layer passes or
+   every residual is a logged deliberate keep. The before and after reports
+   both go in the delivery note.
 
 ### Mode C - Verify (pre-ship gate)
 
-Detector run plus an eyes-on read for the manual checks the script skips
-(listed in reference 02). Close with an explicit verdict: ship, or do not
-ship until the named fixes land. Never "looks mostly good".
+Detector run, an eyes-on read for the manual checks the script skips (listed
+in reference 02), and the read-aloud pass. Close with an explicit verdict:
+ship, or do not ship until the named fixes land. Never "looks mostly good".
+
+If the piece reached you already repaired, treat checks 12 to 16 as the ones
+most likely to fire: they measure the repair rather than the draft.
+
+## When to consult claude-seo
+
+Some structure that reads as a tell is search and answer-engine optimisation
+doing its job. The detector raises `consult_claude_seo` in the borderline
+section when a document looks answer-engine shaped (half or more of its H2s
+are questions, with two or more answer blocks under them). Treat that flag,
+or any of the triggers below, as a stop before repairing:
+
+- Question-cadence headings on an FAQ, a "questions to ask" page, or any page
+  built to be quoted by AI search. Check 1 still reports the percentage
+  honestly, because nothing structural separates a real answer-engine page
+  from a narrative article with rhetorical headings. Decide with claude-seo,
+  then log it as a deliberate keep. Do not rewrite the headings to satisfy a
+  threshold.
+- Parallel imperative runs inside an answer block ("Ask for... Ask how...").
+  Already exempt from check 15, and the exemption is the point.
+- Any repair that would change heading structure, split an answer block, or
+  push a block outside the citable length band.
+- Location pages, service pages, and programmatic sets, where repetition
+  across pages is deliberate template work rather than a repair artifact.
+
+`claude-seo:seo-geo` owns passage citability and answer-block shape;
+`claude-seo:seo-content` owns E-E-A-T and AI citation readiness. They decide
+whether a structure is optimisation. This skill decides whether the sentences
+read like a person wrote them. Both have to pass and neither overrides the
+other; the full doctrine, including where the two genuinely disagree, is in
+[02-second-order-tells.md](references/02-second-order-tells.md).
+
+One caution from seo-content itself: it lists "repetitive structure across
+pages" as a low-quality marker. So the exemption covers structure inside a
+bounded answer block, never the page's ambient rhythm and never a template
+tic repeated site-wide.
 
 ## Non-Negotiables
 
@@ -109,8 +152,11 @@ ship until the named fixes land. Never "looks mostly good".
 
 ## Common Mistakes
 
-Every entry below was observed in baseline testing against the planted
-fixture; none is hypothetical.
+Every entry below was observed, none is hypothetical. The first table came
+from baseline testing against the planted fixture, the second from eight
+agents running this skill over about 620 real sentence repairs.
+
+### Detecting
 
 | Mistake | Reality |
 |---------|---------|
@@ -123,14 +169,30 @@ fixture; none is hypothetical.
 | "The voice skill covered it" | Voice protects register and signature phrases. It does not touch opening-word share, paragraph-shape uniformity, or clause rhythm. Both passes are required. |
 | Deleting everything the detector flags | "Here's the thing" is iDD signature voice. Whitelist first, then delete. |
 
+### Repairing
+
+| Mistake | Reality |
+|---------|---------|
+| "The detector passes, so the repair is done" | Every check the detector had measured the draft. Eight agents passed it and still shipped telegraphese, tics, chop and orphaned pronouns. Five of those are checks now; the read-aloud gate covers the rest. |
+| "I varied the openers" | Agents varied them by deleting articles: "The buyer pool includes" became "Buyer pool here includes". Vary by restructuring (possessive, fronted clause, new subject). Amputation is the louder tell. |
+| "I split the long sentence" | ", so the team can support them" became a standalone "So the team can support them." A purpose clause with a full stop is a fragment. Reattach it or recast as "That way, ...". |
+| "Short sentences read as human" | Three or more short sentences running is chop, and burstiness, flat-paragraph SD and paragraph-shape SD all IMPROVE when you chop. The numbers will congratulate you for it. |
+| "I only touched that one sentence" | Echoes, appositives drifting to the wrong noun and pronouns left without an antecedent all come from sentence-local edits. Read the paragraph, not the line. |
+| "Same meaning, better rhythm" | "The practical point is simple" sets up a simplification; "it really is that simple" asserts the previous paragraph was simple. Rhetorical function is part of meaning. |
+| "My replacement opener sounds natural" | It does, once. Two agents independently converged on "Honestly," across their files and neither could hear it, because each saw only its own work. |
+
 ## Verdict Format
 
 ```
 DETECTOR   first-order PASS/FAIL | second-order PASS/FAIL | hygiene PASS/FAIL
+READ ALOUD [done, and what it caught, or what it confirmed clean]
 DELIBERATE KEEPS  [flagged items kept, with the voice or technique source]
 RESIDUALS  [anything still failing and why it is acceptable, or empty]
 VERDICT    ship / do not ship until [named fixes]
 ```
+
+READ ALOUD is a required line in Modes B and C. "Clean" is a valid value; a
+missing line means the pass is not finished.
 
 ## Handoffs
 
@@ -142,6 +204,12 @@ VERDICT    ship / do not ship until [named fixes]
 - The words should come from customers: voc-research
 - Full blog scoring (SEO, E-E-A-T, citation readiness): claude-blog's
   /blog analyze; its AI-risk layer overlaps this skill's detector
+- Whether a structure is answer-engine optimisation rather than a tell:
+  claude-seo's seo-geo (passage citability, self-contained answer blocks) and
+  seo-content (E-E-A-T, AI citation readiness). They own that call; this skill
+  owns whether the sentences read like a person wrote them. Both have to pass,
+  and neither overrides the other (reference 02, "Answer blocks are exempt
+  from check 15")
 - AI slop in code: oh-my-claudecode:ai-slop-cleaner
 
 ## Attribution

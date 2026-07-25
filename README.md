@@ -17,6 +17,15 @@ Ascot RE production site (see SESSION-HANDOFF-2026-07-25.md and
 docs/dev/2026-07-25-fleet-run-learnings.md). Both sibling-repo integrations
 (copy-editing-sweeps handoff, idd-writing-style pre-ship pointer) are live.
 
+That fleet run also produced the current work: repair is itself a generation
+pass, and every check the detector had measured the draft rather than the
+repair. Eight agents passed the detector and still shipped telegraphese,
+converged tics, chop, and orphaned pronouns. Five of those failure modes are
+now mechanical checks (12 to 16), the rest are repair moves in reference 03,
+and the read-aloud gate is a numbered Mode B step plus a required line in the
+verdict format. The working tree is ahead of the published 0.2.0 cache; a
+version bump and re-publish are Julian's call.
+
 ## Why it exists
 
 Baseline testing showed that a capable model, even with a brand voice skill
@@ -74,9 +83,14 @@ a tell versus deliberate voice.
 python3 -m unittest discover tests -v
 ```
 
-15 tests pin the detector to the planted fixture (inventory in
+39 tests pin the detector to the planted fixture (inventory in
 `tests/EXPECTED-FINDINGS.md`) plus a clean human-shaped sample that must pass
-every layer. End-to-end verification: a Sonnet agent following the skill took
+every layer. Two of them are characterization tests that pin the blind spots
+the repair-artifact checks exist to cover: chopped copy scores 1.09 on
+burstiness against a 0.30 floor, and four consecutive "Ask" sentences score
+16.4 percent on document-wide opening-word share against a 25 percent limit.
+Both pass every older check. If either starts failing, the check it justifies
+needs re-reading, not deleting. End-to-end verification: a Sonnet agent following the skill took
 the fixture from triple-FAIL to triple-PASS, kept all six whitelisted voice
 items including the "Here's the thing" signature-phrase trap, and used the
 verdict format with real detector output. The fixture violates house style on
@@ -101,11 +115,16 @@ then humanise-copy, then ship. Always last; any later edit reopens the pass.
 
 ## Next steps (each needs Julian's explicit go)
 
-1. git init, first commit, GitHub repo, registration in the private amh
-   marketplace
-2. Commit the copy-school handoff row; regenerate the claude.ai 10x zip
-3. Commit the idd-writing-style section; redeploy the live anthropic-skills
-   copy
+1. Commit the repair-artifact work, then bump the version and re-publish. The
+   installed outfit and loadout caches sit at 0.2.0 and carry none of it, so
+   a triggered session still loads the older skill.
+2. Consider porting the .astro and .json prose extraction into the plugin as
+   a first-class batch mode (the fleet run's extractor lived in a session
+   scratchpad and died with it).
+
+Shipped and needing nothing further: the public repo and MIT licence, both
+marketplace listings, the copy-school handoff row, and the idd-writing-style
+pre-ship section.
 
 ## Attribution
 

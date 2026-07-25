@@ -8,12 +8,14 @@ verify loop: no clean detector report, no "done".
 
 ## Status
 
-v0.2.0, built and test-verified 2026-07-24, live at
-github.com/juliandickie/humanise-copy (private). v0.2.0 adds the
-spliced-subject-triad check, the read-aloud naturalness doctrine, and the
-borderline warning band, all from the first day of real-copy use. Both
-sibling-repo integrations (copy-editing-sweeps handoff, idd-writing-style
-pre-ship pointer) are committed and pushed.
+v0.2.0, public at github.com/juliandickie/humanise-copy (MIT), listed in the
+outfit and loadout marketplaces. The spliced-subject-triad check, read-aloud
+naturalness doctrine, and borderline warning band all came from the first day
+of real-copy use. Proven at fleet scale 2026-07-25: ~200 copy surfaces
+measured and ~620 sentence repairs across five client demo sites and the
+Ascot RE production site (see SESSION-HANDOFF-2026-07-25.md and
+docs/dev/2026-07-25-fleet-run-learnings.md). Both sibling-repo integrations
+(copy-editing-sweeps handoff, idd-writing-style pre-ship pointer) are live.
 
 ## Why it exists
 

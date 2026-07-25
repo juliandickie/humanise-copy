@@ -13,7 +13,8 @@ outfit and loadout marketplaces. The spliced-subject-triad check, read-aloud
 naturalness doctrine, and borderline warning band all came from the first day
 of real-copy use. Proven at fleet scale 2026-07-25: ~200 copy surfaces
 measured and ~620 sentence repairs across five client demo sites and the
-Ascot RE production site (see SESSION-HANDOFF-2026-07-25.md and
+Ascot RE production site (latest handoff SESSION-HANDOFF-2026-07-26.md,
+kickoff NEXT-SESSION.md, prior SESSION-HANDOFF-2026-07-25.md and
 docs/dev/2026-07-25-fleet-run-learnings.md). Both sibling-repo integrations
 (copy-editing-sweeps handoff, idd-writing-style pre-ship pointer) are live.
 

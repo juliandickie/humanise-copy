@@ -18,7 +18,7 @@ kickoff NEXT-SESSION.md, prior SESSION-HANDOFF-2026-07-25.md and
 docs/dev/2026-07-25-fleet-run-learnings.md). Both sibling-repo integrations
 (copy-editing-sweeps handoff, idd-writing-style pre-ship pointer) are live.
 
-That fleet run also produced the current work: repair is itself a generation
+That fleet run also produced the v0.3.0 work: repair is itself a generation
 pass, and every check the detector had measured the draft rather than the
 repair. Eight agents passed the detector and still shipped telegraphese,
 converged tics, chop, and orphaned pronouns. Five of those failure modes are
@@ -54,7 +54,7 @@ humanise-copy/
     fixtures/idd-draft-sloppy.md     # Planted fixture (violates house style BY DESIGN)
     EXPECTED-FINDINGS.md             # Plant inventory / ground truth
     RED-BASELINE.md                  # What a capable model does without the skill
-    test_detect.py                   # 15 tests pinning detector to ground truth
+    test_detect.py                   # 46 tests pinning detector to ground truth
   README.md
 ```
 
@@ -85,7 +85,7 @@ a tell versus deliberate voice.
 python3 -m unittest discover tests -v
 ```
 
-39 tests pin the detector to the planted fixture (inventory in
+46 tests pin the detector to the planted fixture (inventory in
 `tests/EXPECTED-FINDINGS.md`) plus a clean human-shaped sample that must pass
 every layer. Two of them are characterization tests that pin the blind spots
 the repair-artifact checks exist to cover: chopped copy scores 1.09 on
@@ -107,26 +107,28 @@ then humanise-copy, then ship. Always last; any later edit reopens the pass.
 ## Integrations
 
 - `copy-school/10x-copywriting` - sister-skill handoff row added to
-  copy-editing-sweeps pointing here as the post-sweep final pass
-  (uncommitted in that repo; the pending claude.ai zip needs regenerating
-  once committed)
+  copy-editing-sweeps pointing here as the post-sweep final pass. Committed
+  2154097, the zip rebuilt with the row at ed8eb13, and uploaded to
+  claude.ai. Nothing outstanding.
 - `idd-writing-style` - "Pre-Ship QA - AI Tells" section added, with the
-  signature-phrase whitelist stated explicitly (uncommitted; the live copy
-  runs from the anthropic-skills plugin cache and needs Julian's manual
-  redeploy)
+  signature-phrase whitelist stated explicitly. Committed 5bd356a and
+  7b7b1b5, the skill bundle rebuilt, and the anthropic-skills live copy
+  redeployed. Nothing outstanding.
 
 ## Next steps (each needs Julian's explicit go)
 
-1. Commit the repair-artifact work, then bump the version and re-publish. The
-   installed outfit and loadout caches sit at 0.2.0 and carry none of it, so
-   a triggered session still loads the older skill.
-2. Consider porting the .astro and .json prose extraction into the plugin as
+1. Consider porting the .astro and .json prose extraction into the plugin as
    a first-class batch mode (the fleet run's extractor lived in a session
    scratchpad and died with it).
+2. Run a `/plugin` update in an interactive session. The installed cache
+   holds 0.3.0 and was verified functionally, but its directory is still
+   named 0.2.0. The update lays down a clean directory and regenerates the
+   install manifest.
 
-Shipped and needing nothing further: the public repo and MIT licence, both
-marketplace listings, the copy-school handoff row, and the idd-writing-style
-pre-ship section.
+Shipped and needing nothing further: v0.3.0 published, the public repo and
+MIT licence, both marketplace listings updated in lockstep, the copy-school
+handoff row with its claude.ai upload, and the idd-writing-style pre-ship
+section with its anthropic-skills redeploy.
 
 ## Attribution
 

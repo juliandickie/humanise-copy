@@ -141,17 +141,17 @@ then humanise-copy, then ship. Always last; any later edit reopens the pass.
 1. Consider porting the .astro and .json prose extraction into the plugin as
    a first-class batch mode (the fleet run's extractor lived in a session
    scratchpad and died with it).
-2. Run a `/plugin` update in an interactive session. The installed cache now
-   sits a version behind at 0.3.0, and its directory is still named 0.2.0.
-   The update lays down a clean directory and regenerates the install
-   manifest.
-3. Push 0.4.0 and refresh both marketplace listings in lockstep, the way
-   0.3.0 was done. The 0.4.0 commit is local only until then, so anyone
-   installing from a marketplace still gets the gating behaviour.
+2. Run a `/plugin` update in an interactive session. The installed cache was
+   fast-forwarded to 0.4.0 and verified (54 tests, advisory behaviour live),
+   but its directory is still named 0.2.0. Cosmetic only; the update lays
+   down a clean directory and regenerates the install manifest.
 
-Shipped and needing nothing further: the public repo and MIT licence, the
+Shipped and needing nothing further: v0.4.0 published (310d673 on main), the
+installed cache fast-forwarded to match, the public repo and MIT licence, the
 copy-school handoff row with its claude.ai upload, and the idd-writing-style
-pre-ship section with its anthropic-skills redeploy.
+pre-ship section with its anthropic-skills redeploy. Both marketplace listings
+needed no edit for 0.4.0, because they carry no version and track the repo URL,
+and their descriptions do not mention the check that changed.
 
 ## Attribution
 

@@ -25,7 +25,10 @@ that same set and were fixed. Mechanism is the `ADVISORY_CHECKS` frozenset in
 `scripts/detect.py`; doctrine is in reference 02 under "Paragraph-shape SD is
 advisory, not a gate". The generalisation worth carrying to any check added
 later: separate the signals that measure the prose from the signals that
-measure the layout, and only gate on the first group.
+measure the layout, and only gate on the first group. Full write-up, including
+how three subagents independently gamed the comma-counting three-clause check
+and the counter-metric that caught them, is in
+[docs/dev/2026-07-27-paragraph-shape-advisory.md](docs/dev/2026-07-27-paragraph-shape-advisory.md).
 
 The spliced-subject-triad check, read-aloud
 naturalness doctrine, and borderline warning band all came from the first day

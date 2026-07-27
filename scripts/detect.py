@@ -146,6 +146,12 @@ THRESHOLDS = {
 
 # Checks that are measured and reported but do NOT decide a layer's verdict.
 #
+# Both members are paragraph-BOUNDARY checks: identical prose scores
+# differently depending only on where the breaks fall. That is what makes them
+# unfit to gate, and it is also why they stay measured. A real tell is still a
+# real tell; it just needs a human to confirm it rather than a build to block
+# on it.
+#
 # paragraph_shape measures the spread of paragraph WORD counts, so it responds
 # to where paragraph breaks fall rather than to the prose itself. A pure
 # readability pass over 22 long-form posts, splitting over-long paragraphs at
@@ -153,8 +159,18 @@ THRESHOLDS = {
 # 20/22 to 10/22 on this check alone. It also pulls directly against house
 # styles that cap paragraphs at 2 to 5 sentences. It stays measured, because a
 # genuinely uniform paragraph architecture is still a real AI tell worth
-# seeing, but it no longer gates a verdict on its own.
-ADVISORY_CHECKS = frozenset({"paragraph_shape"})
+# seeing, but it no longer gates a verdict on its own. (0.4.0)
+#
+# flat_paragraphs measures the spread of SENTENCE lengths within a paragraph,
+# and over-fires on parallel instructional lists: a stated count ("five simple,
+# repeatable moves") followed by exactly that many items, which are uniform in
+# length by design. Merging any item breaks the stated count, so the only
+# honest resolution is a deliberate keep - which means the check was asking for
+# an edit that must not be made. Three of the 22 ASDE launch posts carry
+# exactly that keep. Same class as paragraph_shape, smaller blast radius.
+# Demoting it leaves the reference AI-slop fixture failing on 12 other gating
+# checks, so the layer can still fail on genuine tells. (0.5.0)
+ADVISORY_CHECKS = frozenset({"paragraph_shape", "flat_paragraphs"})
 
 # ---------------------------------------------------------------------------
 # Text preparation
@@ -811,6 +827,10 @@ def collect_warnings(first, second):
     for item in second["three_clause_borderline"]:
         w.append({"check": "three_clause_borderline", "line": item["line"],
                   "fraction": item["fraction"]})
+    if not second["checks"]["flat_paragraphs"]:
+        w.append({"check": "flat_paragraphs_advisory",
+                  "count": len(second["flat_paragraphs"]),
+                  "floor": THRESHOLDS["flat_paragraph_sd_min"]})
     for item in second["flat_borderline"]:
         w.append({"check": "flat_paragraph_borderline", "line": item["line"],
                   "sd": item["sd"]})
@@ -929,9 +949,11 @@ def render_markdown(report):
     out.append("- \"Key insight\" openers: %d [%s]" % (
         len(s["key_insight_openers"]),
         fmt_check(s["checks"]["key_insight_openers"])))
+    flat_state = ("ADVISORY, none found" if s["checks"]["flat_paragraphs"]
+                  else "ADVISORY, found, does not fail this layer")
     out.append("- Flat paragraphs (sentence-length SD < %.0f): %d [%s]" % (
         THRESHOLDS["flat_paragraph_sd_min"], len(s["flat_paragraphs"]),
-        fmt_check(s["checks"]["flat_paragraphs"])))
+        flat_state))
     out.append("- Spliced subject triads: %d [%s]" % (
         len(s["spliced_triads"]), fmt_check(s["checks"]["spliced_triads"])))
     for sp in s["spliced_triads"]:

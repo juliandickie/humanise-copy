@@ -23,14 +23,18 @@ when used deliberately (see the asset table at the end).
 | 7 | Wrap-up questions - "What does this mean for you?" closing sections | more than 2 | Cut it, or actually answer it in the next sentence |
 | 8 | Capsule transitions - sections opening "First,..." "Next,..." "Additionally,..." | above 50% of section openers | Bury the transition inside the sentence, or trust the heading to carry the sequence |
 | 9 | Insight telegraphing - "The key insight is...", "What's important here is..." | any | Delete the frame, keep the insight. The sentence is stronger standing alone |
-| 10 | Rhythmic flatness | flat paragraphs (sentence-length SD under 4), opening-word top-3 share above 25%, paragraph-shape SD under 25 on 8+ paragraphs (ADVISORY, see below) | Vary deliberately: a one-line paragraph after a dense one, different sentence openers, unequal section weights |
+| 10 | Rhythmic flatness | flat paragraphs, sentence-length SD under 4 (ADVISORY, see below), opening-word top-3 share above 25%, paragraph-shape SD under 25 on 8+ paragraphs (ADVISORY, see below) | Vary deliberately: a one-line paragraph after a dense one, different sentence openers, unequal section weights |
 | 11 | Spliced subject triads - "It runs..., it puts..., and it ends..." | the same pronoun subject restated 2 or more times across comma-spliced clauses in one sentence | Share the verbs under one subject ("It runs in a fixed order and puts everything in writing"), vary the subjects, or split the sentence |
 
-## Paragraph-shape SD is advisory, not a gate
+## The paragraph-boundary checks are advisory, not gates
 
-Of every check here, `paragraph_shape` is the only one that measures layout
-rather than language. It is the standard deviation of paragraph WORD counts, so
-it responds to where the paragraph breaks fall, not to how the sentences read.
+Two checks here measure layout rather than language, and neither can fail a
+layer on its own: `paragraph_shape` (since 0.4.0) and `flat_paragraphs`
+(since 0.5.0). Both are computed per paragraph, so identical prose scores
+differently depending only on where the breaks fall.
+
+`paragraph_shape` is the standard deviation of paragraph WORD counts, so it
+responds to where the paragraph breaks fall, not to how the sentences read.
 Move a break and the score moves, with the prose untouched.
 
 That makes it uniquely easy to satisfy the wrong way and uniquely easy to fail
@@ -51,6 +55,24 @@ paragraphs genuinely all look the same on the page, vary them, preferring a
 short one-line punch paragraph (a low outlier) over a wall of text (a high one).
 If the score is low because you just made a dense page readable, that is the
 check doing what it does, and you should ignore it.
+
+`flat_paragraphs` is the same problem one level down. It is the standard
+deviation of SENTENCE lengths inside a paragraph, and it over-fires on parallel
+instructional lists: a stated count ("five simple, repeatable moves") followed
+by exactly that many items, uniform in length because that is the technique.
+Merging any item breaks the stated count, so the only honest resolution is a
+deliberate keep, which means the check was asking for an edit that must not be
+made. Read it the same way: if a run of sentences is flat AND nothing structural
+is forcing it, vary the lengths; if the flatness IS the parallel, keep it and
+move on.
+
+**What neither demotion means.** Both checks still measure, still report, still
+warn. A genuinely uniform paragraph architecture and a genuinely metronomic run
+of sentences are real AI tells. What changed is who decides: a human reading the
+warning, not a build failing on a number. When the layout noise was removed from
+the 22-post set, four genuine metronome and flat-rhythm faults surfaced
+underneath and were fixed, which is the argument for demoting these rather than
+deleting them.
 
 The general lesson is worth carrying to any check added later. Split the report
 in your head into signals that measure the prose (trigger phrases, trigger

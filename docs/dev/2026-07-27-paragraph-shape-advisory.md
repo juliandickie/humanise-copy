@@ -63,7 +63,13 @@ This is the part that argues for demotion rather than deletion. Once the layout 
 
 It over-fires reliably on parallel instructional lists: a stated count ("five simple, repeatable moves") followed by exactly that many items, which have uniform length by design. Merging any item breaks the stated count, so the only honest resolution is a deliberate keep. Three posts in this set carry one.
 
-Open question for Julian, not acted on.
+**RESOLVED the same day, in 0.5.0.** Julian's call: demote it as well. `ADVISORY_CHECKS` now holds both paragraph-boundary checks.
+
+The measured effect on the same 22 posts was second-order 19 of 22 to **21 of 22**. The two posts it freed, `digital-aesthetics-practice` and `motivational-mockup-smile-design`, were both logged deliberate keeps failing on this check alone. The third, `full-arch-passive-fit-problem`, still fails - on `adjacent_echoes`, the deliberate contrastive pair that opens the post ("That is not a rounding error. That is the entire case."). That is the signature of a correctly scoped demotion: it cleared exactly the over-firing it targeted and left an unrelated residual visible rather than sweeping it up too.
+
+**The check that should gate any future demotion.** Not "does the change work" but "can the layer still fail". Every check moved into `ADVISORY_CHECKS` narrows what can fail, and a detector that cannot fail is worse than no detector, because it manufactures false confidence - the exact failure mode `tests/RED-BASELINE.md` records. Before demoting, run the reference slop fixture and count the gating checks still failing. At 0.5.0 that is 12, and `test_demotion_left_the_layer_with_real_teeth` asserts a floor of 8 so the next demotion has to be deliberate.
+
+**The generalisable rule, now stated in the frozenset's own comment.** Gate on the signals that measure the prose. Report the signals that measure the layout. Any check added later should be classified on that line before it is allowed to gate.
 
 ## 6. Repair artifacts observed again, confirming reference 03
 

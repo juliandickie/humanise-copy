@@ -632,6 +632,80 @@ class TestParagraphShapeIsAdvisory(unittest.TestCase):
                             for k in ("first_order", "second_order", "hygiene")))
 
 
+PARALLEL_INSTRUCTIONS = """# Five Checks Before You Cement
+
+Before anything goes in permanently there are five simple checks that save most of the remakes I used to see, and not one of them takes long enough to matter on a busy list.
+
+Check the margin under magnification first. Confirm the contact with floss, not by eye. Seat the restoration dry and watch the tissue. Ask the patient to close and listen. Photograph the shade against the adjacent tooth.
+
+Cement choice comes after all five and never before, and the order matters a good deal more than most people expect when they are already running late.
+"""
+
+
+class TestFlatParagraphsIsAdvisory(unittest.TestCase):
+    """flat_paragraphs is measured and reported but must not gate a verdict.
+
+    It measures the spread of SENTENCE lengths inside a paragraph, and
+    over-fires on parallel instructional lists: a stated count ("five simple
+    checks") followed by exactly that many items, uniform in length by design.
+    Merging any item breaks the stated count, so the only honest resolution is
+    a deliberate keep - which means the check was asking for an edit that must
+    not be made. Three of the 22 ASDE launch posts carry exactly that keep.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8")
+        tmp.write(PARALLEL_INSTRUCTIONS)
+        tmp.close()
+        try:
+            cls.report = detect.analyse_file(tmp.name)
+        finally:
+            Path(tmp.name).unlink(missing_ok=True)
+
+    def test_flat_paragraphs_is_declared_advisory(self):
+        self.assertIn("flat_paragraphs", detect.ADVISORY_CHECKS)
+
+    def test_the_fixture_isolates_this_check(self):
+        # If any other gating check also failed here, every assertion below
+        # would pass for the wrong reason.
+        failing = [n for n, ok
+                   in self.report["second_order"]["checks"].items()
+                   if not ok and n not in detect.ADVISORY_CHECKS]
+        self.assertEqual(failing, [], msg=str(self.report["second_order"]["checks"]))
+
+    def test_check_is_still_measured_and_reported(self):
+        # Kept in the checks dict so JSON consumers keep working, and so a
+        # genuinely flat run of sentences stays visible to a human.
+        self.assertIn("flat_paragraphs", self.report["second_order"]["checks"])
+        self.assertEqual(len(self.report["second_order"]["flat_paragraphs"]), 1)
+
+    def test_failing_check_does_not_fail_the_layer(self):
+        self.assertFalse(self.report["second_order"]["checks"]["flat_paragraphs"])
+        self.assertTrue(self.report["verdict"]["second_order"], msg=str(self.report))
+        self.assertTrue(self.report["verdict"]["overall"], msg=str(self.report))
+
+    def test_it_raises_an_advisory_warning(self):
+        warn = [w for w in self.report["warnings"]
+                if w["check"] == "flat_paragraphs_advisory"]
+        self.assertEqual(len(warn), 1)
+        self.assertEqual(warn[0]["count"], 1)
+        self.assertEqual(warn[0]["floor"],
+                         detect.THRESHOLDS["flat_paragraph_sd_min"])
+
+    def test_markdown_labels_it_advisory_not_fail(self):
+        line = [ln for ln in detect.render_markdown(self.report).splitlines()
+                if ln.startswith("- Flat paragraphs")]
+        self.assertEqual(len(line), 1)
+        self.assertIn("ADVISORY", line[0])
+        self.assertNotIn("FAIL", line[0])
+
+    def test_gate_exit_code_ignores_advisory(self):
+        self.assertTrue(all(self.report["verdict"][k]
+                            for k in ("first_order", "second_order", "hygiene")))
+
+
 class TestAdvisoryDoesNotMaskRealFailures(unittest.TestCase):
     """The fixture must still fail second-order on its genuine tells."""
 
@@ -642,11 +716,27 @@ class TestAdvisoryDoesNotMaskRealFailures(unittest.TestCase):
     def test_fixture_still_fails_second_order(self):
         self.assertFalse(self.report["verdict"]["second_order"])
 
-    def test_failure_is_driven_by_gating_checks_not_paragraph_shape(self):
+    def test_failure_is_driven_by_gating_checks_not_advisory_ones(self):
         failing = [name for name, ok
                    in self.report["second_order"]["checks"].items()
                    if not ok and name not in detect.ADVISORY_CHECKS]
         self.assertTrue(failing, msg="fixture must fail on real, gating tells")
+
+    def test_demotion_left_the_layer_with_real_teeth(self):
+        # Guard against future over-demotion. Every check moved into
+        # ADVISORY_CHECKS narrows what can fail. If that set ever grows to the
+        # point where the reference AI-slop draft nearly passes, the detector
+        # has stopped detecting, and a green verdict becomes false confidence -
+        # which is worse than no verdict at all. 12 gating tells still fired
+        # here at 0.5.0; this asserts a floor well under that, so a deliberate
+        # demotion is easy and an accidental gutting is not.
+        failing = [name for name, ok
+                   in self.report["second_order"]["checks"].items()
+                   if not ok and name not in detect.ADVISORY_CHECKS]
+        self.assertGreaterEqual(
+            len(failing), 8,
+            msg="ADVISORY_CHECKS has grown too far: only %d gating tells still "
+                "fire on the reference slop draft (%s)" % (len(failing), failing))
 
 
 if __name__ == "__main__":

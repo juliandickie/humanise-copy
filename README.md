@@ -172,21 +172,28 @@ then humanise-copy, then ship. Always last; any later edit reopens the pass.
 1. Consider porting the .astro and .json prose extraction into the plugin as
    a first-class batch mode (the fleet run's extractor lived in a session
    scratchpad and died with it).
-2. **Push and release 0.5.0.** The `flat_paragraphs` demotion is committed on
-   `main` locally with 62 tests green, and held there because this repo has no
-   `handoff:` policy line. One `git push origin main` when you want it.
-3. Run a `/plugin` update in an interactive session. The installed cache was
-   fast-forwarded to 0.4.0 and verified (54 tests at the time, advisory
-   behaviour live), but its directory is still named 0.2.0 and it does not yet
-   carry 0.5.0. Cosmetic plus one version behind; the update lays down a clean
-   directory and regenerates the install manifest.
+2. Run a `/plugin` update in an interactive session. Two things need it, and
+   only the second one matters. The cache DIRECTORY is still named `0.2.0`,
+   which is cosmetic. The install MANIFEST
+   (`~/.claude/plugins/installed_plugins.json`) still records `version 0.3.0`
+   and `gitCommitSha c41694c`, which is now two releases stale and simply
+   wrong - the code on disk there is 0.5.0 and that is what runs. Editing that
+   file by hand is blocked by the harness classifier (correctly, it is Claude
+   Code's own state), so `/plugin update` is the only route. It regenerates
+   both. Until then, trust the cache's own `plugin.json` and `detect.py` over
+   the manifest.
 
-Shipped and needing nothing further: v0.4.0 published (310d673 on main) with
-its dev-docs evidence note (fd2552d), the public repo and MIT licence, the
-copy-school handoff row with its claude.ai upload, and the idd-writing-style
-pre-ship section with its anthropic-skills redeploy. Both marketplace listings
-needed no edit for 0.4.0 or 0.5.0, because they carry no version and track the
-repo URL, and their descriptions do not mention the checks that changed.
+Shipped and needing nothing further: **v0.5.0 published (89c5638 on main)**,
+with the installed cache fast-forwarded to match and verified from its own path
+(62 tests green, `ADVISORY_CHECKS` holding both checks, second-order returning
+PASS on a document whose only fault is a flat paragraph). The pre-0.5.0 cache
+is backed up alongside it as `0.2.0.bak-20260727-pre-0.5.0`. Also shipped:
+v0.4.0 (310d673) with its dev-docs evidence note (fd2552d), the public repo and
+MIT licence, the copy-school handoff row with its claude.ai upload, and the
+idd-writing-style pre-ship section with its anthropic-skills redeploy. Both
+marketplace listings needed no edit for 0.4.0 or 0.5.0, because they carry no
+version and track the repo URL, and their descriptions do not mention the
+checks that changed.
 
 ## Attribution
 

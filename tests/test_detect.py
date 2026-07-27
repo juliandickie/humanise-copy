@@ -552,5 +552,102 @@ class TestCleanSamplePasses(unittest.TestCase):
         self.assertTrue(self.report["verdict"]["overall"])
 
 
+UNIFORM_PARAGRAPHS = """# Margin Detection After Three Weeks
+
+Margin detection earned its place in a busy list after three weeks of routine crown work and a fair few notes.
+
+The first preparation told us plenty. Amber lit along the distal exactly where a lip of material had been left behind.
+
+Refinement happened before the patient stood up, which is the whole argument for having it read the scan at all.
+
+Deep subgingival margins still defeat it. Retraction cord remains necessary and no algorithm yet invented has fixed wet dentine.
+
+Nurses picked it up faster than I expected, and two of them now run the scan unprompted at every checkup appointment.
+
+Reporting sits in a side panel. That suits me, because what I want is the chairside read rather than another dashboard.
+
+Cost is where the argument gets harder to make cleanly, so judge it on remakes avoided across a quarter rather than on a demo.
+
+My advice is to trial it on posterior singles. Anterior work carries expectations a first trial does not need to carry.
+
+Verdict, then. It is worth the seat if your remake rate sits anywhere near where mine sat before we started.
+"""
+
+
+class TestParagraphShapeIsAdvisory(unittest.TestCase):
+    """paragraph_shape is measured and reported but must not gate a verdict.
+
+    It measures the spread of paragraph WORD counts, so it responds to where
+    paragraph breaks fall rather than to the prose. A readability pass over 22
+    long-form posts that split over-long paragraphs at idea boundaries and
+    changed zero words cut the second-order pass rate from 20/22 to 10/22 on
+    this check alone. Splitting a wall of text into readable paragraphs must
+    never be what fails a document.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8")
+        tmp.write(UNIFORM_PARAGRAPHS)
+        tmp.close()
+        try:
+            cls.report = detect.analyse_file(tmp.name)
+        finally:
+            Path(tmp.name).unlink(missing_ok=True)
+
+    def test_paragraph_shape_is_declared_advisory(self):
+        self.assertIn("paragraph_shape", detect.ADVISORY_CHECKS)
+
+    def test_check_is_still_measured_and_reported(self):
+        # Kept in the checks dict so JSON consumers keep working, and so a
+        # genuinely uniform paragraph architecture stays visible.
+        self.assertIn("paragraph_shape", self.report["second_order"]["checks"])
+        self.assertTrue(self.report["second_order"]["paragraph_sd_applicable"])
+        self.assertLess(self.report["second_order"]["paragraph_sd"],
+                        detect.THRESHOLDS["paragraph_sd_min"])
+
+    def test_failing_check_does_not_fail_the_layer(self):
+        self.assertFalse(self.report["second_order"]["checks"]["paragraph_shape"])
+        self.assertTrue(self.report["verdict"]["second_order"], msg=str(self.report))
+        self.assertTrue(self.report["verdict"]["overall"], msg=str(self.report))
+
+    def test_below_floor_raises_an_advisory_warning(self):
+        warn = [w for w in self.report["warnings"]
+                if w["check"] == "paragraph_shape_advisory"]
+        self.assertEqual(len(warn), 1)
+        self.assertEqual(warn[0]["floor"], detect.THRESHOLDS["paragraph_sd_min"])
+
+    def test_markdown_labels_it_advisory_not_fail(self):
+        line = [ln for ln in detect.render_markdown(self.report).splitlines()
+                if ln.startswith("- Paragraph-shape SD:")]
+        self.assertEqual(len(line), 1)
+        self.assertIn("ADVISORY", line[0])
+        self.assertNotIn("FAIL", line[0])
+
+    def test_gate_exit_code_ignores_advisory(self):
+        # --gate exits 1 on a failing layer; an advisory check alone must not
+        # trip it, or CI would block on paragraph breaks.
+        self.assertTrue(all(self.report["verdict"][k]
+                            for k in ("first_order", "second_order", "hygiene")))
+
+
+class TestAdvisoryDoesNotMaskRealFailures(unittest.TestCase):
+    """The fixture must still fail second-order on its genuine tells."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.report = detect.analyse_file(FIXTURE)
+
+    def test_fixture_still_fails_second_order(self):
+        self.assertFalse(self.report["verdict"]["second_order"])
+
+    def test_failure_is_driven_by_gating_checks_not_paragraph_shape(self):
+        failing = [name for name, ok
+                   in self.report["second_order"]["checks"].items()
+                   if not ok and name not in detect.ADVISORY_CHECKS]
+        self.assertTrue(failing, msg="fixture must fail on real, gating tells")
+
+
 if __name__ == "__main__":
     unittest.main()

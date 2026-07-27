@@ -23,8 +23,40 @@ when used deliberately (see the asset table at the end).
 | 7 | Wrap-up questions - "What does this mean for you?" closing sections | more than 2 | Cut it, or actually answer it in the next sentence |
 | 8 | Capsule transitions - sections opening "First,..." "Next,..." "Additionally,..." | above 50% of section openers | Bury the transition inside the sentence, or trust the heading to carry the sequence |
 | 9 | Insight telegraphing - "The key insight is...", "What's important here is..." | any | Delete the frame, keep the insight. The sentence is stronger standing alone |
-| 10 | Rhythmic flatness | flat paragraphs (sentence-length SD under 4), opening-word top-3 share above 25%, paragraph-shape SD under 25 on 8+ paragraphs | Vary deliberately: a one-line paragraph after a dense one, different sentence openers, unequal section weights |
+| 10 | Rhythmic flatness | flat paragraphs (sentence-length SD under 4), opening-word top-3 share above 25%, paragraph-shape SD under 25 on 8+ paragraphs (ADVISORY, see below) | Vary deliberately: a one-line paragraph after a dense one, different sentence openers, unequal section weights |
 | 11 | Spliced subject triads - "It runs..., it puts..., and it ends..." | the same pronoun subject restated 2 or more times across comma-spliced clauses in one sentence | Share the verbs under one subject ("It runs in a fixed order and puts everything in writing"), vary the subjects, or split the sentence |
+
+## Paragraph-shape SD is advisory, not a gate
+
+Of every check here, `paragraph_shape` is the only one that measures layout
+rather than language. It is the standard deviation of paragraph WORD counts, so
+it responds to where the paragraph breaks fall, not to how the sentences read.
+Move a break and the score moves, with the prose untouched.
+
+That makes it uniquely easy to satisfy the wrong way and uniquely easy to fail
+the right way. Measured on a 22-post long-form set: a pure readability pass that
+split over-long paragraphs at idea boundaries, **changing zero words**, cut the
+second-order pass rate from 20 of 22 to 10 of 22, essentially all of it on this
+one check. The same run's agents, chasing the floor, had produced 150 to 185
+word walls of text, which is what the check rewards and what a reader on a phone
+suffers for.
+
+It also pulls against house styles that cap paragraphs at 2 to 5 sentences
+(idd-writing-style does). Both cannot be satisfied on structured educational
+content.
+
+So the detector reports it, warns when it sits below the floor, and does not let
+it fail a layer on its own. Read it as a prompt: if the score is low AND the
+paragraphs genuinely all look the same on the page, vary them, preferring a
+short one-line punch paragraph (a low outlier) over a wall of text (a high one).
+If the score is low because you just made a dense page readable, that is the
+check doing what it does, and you should ignore it.
+
+The general lesson is worth carrying to any check added later. Split the report
+in your head into signals that measure the prose (trigger phrases, trigger
+density, burstiness, opening-word share, staccato runs, spliced triads, repeated
+openers, adjacent echoes) and signals that measure the layout. The first group
+tells you whether it reads machine-made. The second is context.
 
 ## Repair artifacts
 

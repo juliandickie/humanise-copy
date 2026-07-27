@@ -134,7 +134,7 @@ THRESHOLDS = {
     "wrapup_questions_max": 2,          # fail above
     "capsule_opener_pct_max": 50.0,     # fail above
     "opening_word_top3_pct_max": 25.0,  # fail above
-    "paragraph_sd_min": 25.0,           # fail below (docs >= 8 paragraphs)
+    "paragraph_sd_min": 25.0,           # advisory floor (docs >= 8 paragraphs)
     "symmetric_list_sd_min": 5.0,       # flag lists below
     "flat_paragraph_sd_min": 4.0,       # flag paragraphs below
     "three_clause_fraction": 0.5,       # flag paragraphs at/above
@@ -143,6 +143,18 @@ THRESHOLDS = {
     "staccato_max_words": 6,            # what counts as short for that run
     "opener_run_min": 3,                # consecutive same-first-word, flag at
 }
+
+# Checks that are measured and reported but do NOT decide a layer's verdict.
+#
+# paragraph_shape measures the spread of paragraph WORD counts, so it responds
+# to where paragraph breaks fall rather than to the prose itself. A pure
+# readability pass over 22 long-form posts, splitting over-long paragraphs at
+# idea boundaries and changing zero words, cut the second-order pass rate from
+# 20/22 to 10/22 on this check alone. It also pulls directly against house
+# styles that cap paragraphs at 2 to 5 sentences. It stays measured, because a
+# genuinely uniform paragraph architecture is still a real AI tell worth
+# seeing, but it no longer gates a verdict on its own.
+ADVISORY_CHECKS = frozenset({"paragraph_shape"})
 
 # ---------------------------------------------------------------------------
 # Text preparation
@@ -779,7 +791,11 @@ def collect_warnings(first, second):
     if second["opening_word_applicable"] and second["checks"]["opening_word_repetition"]:
         near_max("opening_word_top3_pct", second["opening_word_top3_pct"],
                  THRESHOLDS["opening_word_top3_pct_max"])
-    if second["paragraph_sd_applicable"] and second["checks"]["paragraph_shape"]:
+    if second["paragraph_sd_applicable"] and not second["checks"]["paragraph_shape"]:
+        w.append({"check": "paragraph_shape_advisory",
+                  "value": second["paragraph_sd"],
+                  "floor": THRESHOLDS["paragraph_sd_min"]})
+    elif second["paragraph_sd_applicable"]:
         near_min("paragraph_sd", second["paragraph_sd"],
                  THRESHOLDS["paragraph_sd_min"])
     if second["seo_signals"]["looks_answer_engine"]:
@@ -819,10 +835,14 @@ def analyse_file(path):
     second = check_second_order(blocks, all_words, sentences)
     hygiene = check_hygiene(lines)
 
+    def gating(checks):
+        return all(ok for name, ok in checks.items()
+                   if name not in ADVISORY_CHECKS)
+
     verdicts = {
-        "first_order": all(first["checks"].values()),
-        "second_order": all(second["checks"].values()),
-        "hygiene": all(hygiene["checks"].values()),
+        "first_order": gating(first["checks"]),
+        "second_order": gating(second["checks"]),
+        "hygiene": gating(hygiene["checks"]),
     }
     verdicts["overall"] = all(verdicts.values())
 
@@ -954,10 +974,14 @@ def render_markdown(report):
         s["opening_word_top3_pct"],
         fmt_check(s["checks"]["opening_word_repetition"]),
         THRESHOLDS["opening_word_top3_pct_max"], ow_note))
-    psd_note = "" if s["paragraph_sd_applicable"] else " (n/a under 8 paragraphs)"
-    out.append("- Paragraph-shape SD: %.1f [%s, min %.0f]%s" % (
-        s["paragraph_sd"], fmt_check(s["checks"]["paragraph_shape"]),
-        THRESHOLDS["paragraph_sd_min"], psd_note))
+    if not s["paragraph_sd_applicable"]:
+        psd_state = "ADVISORY, n/a under 8 paragraphs"
+    elif s["checks"]["paragraph_shape"]:
+        psd_state = "ADVISORY, at or above floor"
+    else:
+        psd_state = "ADVISORY, below floor, does not fail this layer"
+    out.append("- Paragraph-shape SD: %.1f [%s, floor %.0f]" % (
+        s["paragraph_sd"], psd_state, THRESHOLDS["paragraph_sd_min"]))
     out.append("")
     out.append("### Mechanical hygiene - %s" % fmt_check(v["hygiene"]))
     out.append("- Em dashes: %d [%s]" % (h["em_dashes"]["count"], fmt_check(h["checks"]["em_dashes"])))
@@ -968,7 +992,7 @@ def render_markdown(report):
     out.append("- Colons in headings: %d [%s]" % (h["heading_colons"]["count"], fmt_check(h["checks"]["heading_colons"])))
     out.append("")
     if report["warnings"]:
-        out.append("### Borderline (passed, read these aloud)")
+        out.append("### Advisory and borderline (read these aloud)")
         for wn in report["warnings"]:
             detail = ", ".join("%s %s" % (k, v) for k, v in wn.items()
                                if k != "check")

@@ -148,7 +148,12 @@ tic repeated site-wide.
    invention ([03-voice-preserving-repair.md](references/03-voice-preserving-repair.md)).
 5. Thresholds are asset-aware. Apply them through the table in reference 02;
    technique a 10x skill prescribed is not a tell.
-6. Any edit after the hygiene pass reopens the hygiene pass.
+6. Advisory checks never fail a layer. `paragraph_shape` measures layout, not
+   language: it is the spread of paragraph word counts, so it moves when a
+   paragraph break moves and the prose does not. It is reported and warned on,
+   never gated, and never a reason to merge readable paragraphs back into a
+   wall of text (reference 02, "Paragraph-shape SD is advisory, not a gate").
+7. Any edit after the hygiene pass reopens the hygiene pass.
 
 ## Common Mistakes
 
@@ -185,6 +190,7 @@ agents running this skill over about 620 real sentence repairs.
 
 ```
 DETECTOR   first-order PASS/FAIL | second-order PASS/FAIL | hygiene PASS/FAIL
+ADVISORY   [advisory checks below their floor, with the judgement made, or none]
 READ ALOUD [done, and what it caught, or what it confirmed clean]
 DELIBERATE KEEPS  [flagged items kept, with the voice or technique source]
 RESIDUALS  [anything still failing and why it is acceptable, or empty]

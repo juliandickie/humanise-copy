@@ -1,7 +1,7 @@
 {
   "name": "humanise-copy",
   "description": "Detect and repair the tell-tale signs of AI generation in written content while preserving the active brand voice. Two-tier detection (phrase-level and structural), voice-preserving repair, mechanical hygiene.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": {
     "name": "Julian Dickie"
   }

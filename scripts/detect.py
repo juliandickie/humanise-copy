@@ -646,7 +646,7 @@ def check_second_order(blocks, all_words, sentences):
     # 19. Answer-engine routing signal. Question-cadence headings are a tell
     # in a narrative article and the entire point of an answer-engine page,
     # and nothing structural separates the two: the planted fixture and a
-    # real Ascot insights page both run 100 percent question headings. So
+    # real client insights page both run 100 percent question headings. So
     # this decides nothing. It raises a flag saying "ask claude-seo", and the
     # editorial layer settles it.
     seo_signals = {

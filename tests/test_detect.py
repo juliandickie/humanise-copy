@@ -134,14 +134,14 @@ class TestFixtureDetection(unittest.TestCase):
         self.assertEqual(self.hygiene["heading_colons"]["count"], 0)
 
 
-ASCOT_LEAD_ORIGINAL = (
+BUILDER_LEAD_ORIGINAL = (
     "Most building projects go wrong in the paperwork, not the construction. "
     "Our process exists to stop that. It runs in a fixed order, it puts "
     "everything in writing, and it ends with a building the certifier has "
     "signed off, at the price we agreed at the start.\n"
 )
 
-ASCOT_LEAD_REPAIRED = (
+BUILDER_LEAD_REPAIRED = (
     "Most building projects go wrong in the paperwork, not the construction. "
     "Our process exists to stop that. It runs in a fixed order, everything "
     "goes in writing, and it finishes with a certified building at the price "
@@ -165,20 +165,20 @@ class TestSplicedTriadRegression(unittest.TestCase):
             Path(tmp.name).unlink(missing_ok=True)
 
     def test_original_lead_flags(self):
-        r = self.run_on(ASCOT_LEAD_ORIGINAL)
+        r = self.run_on(BUILDER_LEAD_ORIGINAL)
         triads = r["second_order"]["spliced_triads"]
         self.assertEqual(len(triads), 1)
         self.assertIn("It runs in a fixed order", triads[0]["text"])
 
     def test_repaired_lead_clean(self):
-        r = self.run_on(ASCOT_LEAD_REPAIRED)
+        r = self.run_on(BUILDER_LEAD_REPAIRED)
         self.assertEqual(len(r["second_order"]["spliced_triads"]), 0)
 
     def test_repaired_lead_surfaces_as_borderline(self):
         # The repaired lead sits at 1 of 3 multi-clause sentences (0.33),
         # under the 0.5 gate. It must pass the check but appear in the
         # borderline warnings so a human reads it aloud.
-        r = self.run_on(ASCOT_LEAD_REPAIRED)
+        r = self.run_on(BUILDER_LEAD_REPAIRED)
         self.assertTrue(r["second_order"]["checks"]["three_clause_rhythm"])
         self.assertIn("three_clause_borderline",
                       [w["check"] for w in r["warnings"]])
@@ -474,7 +474,7 @@ GEO_PAGE = (
 class TestSeoRouting(unittest.TestCase):
     """Question-cadence headings are a tell in a narrative article and the
     whole point of an answer-engine page. The planted fixture and a real
-    Ascot insights page BOTH run near 100 percent question headings, so no
+    client insights page BOTH run near 100 percent question headings, so no
     mechanical rule separates them. The detector therefore routes the
     judgment to claude-seo instead of pretending to settle it."""
 

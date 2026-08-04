@@ -170,7 +170,55 @@ THRESHOLDS = {
 # exactly that keep. Same class as paragraph_shape, smaller blast radius.
 # Demoting it leaves the reference AI-slop fixture failing on 12 other gating
 # checks, so the layer can still fail on genuine tells. (0.5.0)
-ADVISORY_CHECKS = frozenset({"paragraph_shape", "flat_paragraphs"})
+# 2026-08-05, v0.6.0. Six more checks demoted, on measurement rather than
+# taste. Each was run over three human corpora that pre-date language models
+# (Austen 1817, Darwin 1859, fifteen Paul Graham essays 2004 to 2015) and over
+# the labelled ASDE before/after set. Fire rate on AI drafts against fire rate
+# on untouched Paul Graham essays:
+#
+#   three_clause_rhythm   82% AI / 80% human   no signal
+#   adjacent_echoes       41% AI / 53% human   no signal
+#   spliced_triads        23% AI / 20% human   no signal
+#   repeated_openers      23% AI / 20% human   no signal
+#   staccato_runs         18% AI / 47% human   INVERTED
+#   amputated_purpose      0% AI / 40% human   INVERTED
+#   hedge_stacking         0% AI / 20% human   INVERTED
+#
+# three_clause_rhythm counts commas, never compares one sentence to another,
+# and so cannot see the repetition its name describes. A narrowed rewrite
+# (true clause boundaries, enumerations excluded, consecutive runs, matched
+# lengths) was built and swept across the whole parameter space: best
+# separation anywhere was +0.05, and several settings inverted at up to -0.77.
+# There is no threshold to raise it to, because clause density tracks how
+# considered prose is, not who wrote it.
+#
+# The apparent 18/22 to 0/22 separation on the 27 July blog set was Goodhart,
+# not validation: the repaired corpus sits at 0.0% against a human baseline of
+# 7%, and the flagged sentences survived byte for byte while agents padded the
+# paragraph until the denominator cleared the gate.
+#
+# All seven still measure, still report, still warn. What changed is who
+# decides. Full evidence and method in
+# docs/dev/2026-08-05-clause-rhythm-checks-have-no-signal.md.
+#
+# What still gates: the phrase and hygiene layers, which are deterministic
+# string matching rather than statistics, plus opening_word_repetition (59% AI
+# / 7% human), symmetric_lists, and the checks measuring things a writer does
+# not consciously control across a whole document. The rule the evidence
+# supports for any check added later: document-scale distribution and word
+# choice discriminate; sentence-level craft does not, because that is exactly
+# what a good writer varies on purpose.
+ADVISORY_CHECKS = frozenset({
+    "paragraph_shape",
+    "flat_paragraphs",
+    "three_clause_rhythm",
+    "adjacent_echoes",
+    "spliced_triads",
+    "repeated_openers",
+    "staccato_runs",
+    "amputated_purpose",
+    "hedge_stacking",
+})
 
 # ---------------------------------------------------------------------------
 # Text preparation
@@ -225,16 +273,41 @@ def clean_lines(raw):
 
 
 def split_sentences(text):
-    """Split prose into sentences. Masks common abbreviations first."""
+    """Split prose into sentences. Masks common abbreviations first.
+
+    Markdown emphasis, closing quotes and closing brackets are allowed to sit
+    between the terminator and the space. Without that, "**The rate ends.** The
+    next sentence..." stays one sentence, inflating both the word count and the
+    comma count that every downstream check reads. Fifteen such artifacts were
+    measured in one 6,000-word broadcast file (see
+    docs/dev/2026-08-05-clause-rhythm-checks-have-no-signal.md).
+    """
     masked = text
     for abbr in ABBREVIATIONS:
         masked = masked.replace(abbr, abbr.replace(".", "\x00"))
-    parts = re.split(r"(?<=[.!?])\s+", masked)
+    parts = re.split(r"""(?<=[.!?])[\*_`"'’”\)\]]*\s+""", masked)
     return [p.replace("\x00", ".").strip() for p in parts if p.strip()]
 
 
+# Thousands separators are not clause boundaries. "$5,600 instead of $7,000,
+# permanently" carries three commas, one of which is real. Strip these before
+# any check counts commas.
+NUMERIC_COMMA_RE = re.compile(r"(?<=\d),(?=\d)")
+
+
+def strip_numeric_commas(text):
+    return NUMERIC_COMMA_RE.sub("", text)
+
+
 def words_of(text):
-    return re.findall(r"[A-Za-z][A-Za-z'’-]*", text.lower())
+    """Word tokens, keeping digits that are part of a token.
+
+    The trailing 0-9 matters: without it "B1", "B6" and "B10" all reduce to a
+    bare "b", so unrelated labelled lines register as repeated openers and
+    adjacent echoes. Tokens still have to START with a letter, which keeps bare
+    numbers and stripped thousands separators out of the word counts.
+    """
+    return re.findall(r"[A-Za-z][A-Za-z0-9'’-]*", text.lower())
 
 
 def parse_blocks(lines):
@@ -384,7 +457,8 @@ def check_second_order(blocks, all_words, sentences):
         if len(sents) < 3:
             continue
         multi = [s for s in sents
-                 if s.count(",") >= 2 and len(words_of(s)) >= 12]
+                 if strip_numeric_commas(s).count(",") >= 2
+                 and len(words_of(s)) >= 12]
         frac = len(multi) / len(sents)
         entry = {"line": b["line"], "fraction": round(frac, 2),
                  "sentences": len(sents)}
@@ -508,25 +582,50 @@ def check_second_order(blocks, all_words, sentences):
     # The same pronoun subject restated across comma-spliced clauses reads
     # machine-tightened; a natural writer shares the verbs under one subject
     # or splits the sentence.
+    # A comma splice joins independent clauses with a comma and NO conjunction.
+    # The original logic stripped a leading "and", "but", "so" or "then" and
+    # then took the subject, which meant every correctly punctuated compound
+    # sentence fired. "We carry the leading brands, and we review the whole
+    # market, so we can recommend one" is conjoined at every juncture and is
+    # not a splice; the conjunctions proving that were the tokens being
+    # discarded.
+    #
+    # Both conditions are now required. The subject still has to be restated
+    # twice (a conjoined "and it ends" does restate it, so those segments still
+    # count toward the repetition), AND at least one restatement has to sit at
+    # a genuine splice. "The software leverages X, it analyzes Y, and it flags
+    # Z" splices at "it analyzes" and stays a finding; the conjoined sentence
+    # above no longer does.
     pronouns = ("it", "we", "you", "they", "he", "she", "i")
+    conjunctions = ("and", "but", "so", "then", "or", "yet", "nor")
     spliced = []
     for b in prose:
         for sent in split_sentences(b["text"]):
-            segs = [seg.strip() for seg in sent.split(",") if seg.strip()]
+            segs = [seg.strip()
+                    for seg in strip_numeric_commas(sent).split(",")
+                    if seg.strip()]
             if len(segs) < 3:
                 continue
-            starts = []
-            for seg in segs:
+            starts = []          # subject of each segment, conjunction stripped
+            spliced_subjects = set()   # subjects introduced with no conjunction
+            for idx, seg in enumerate(segs):
                 w = words_of(seg)
                 if not w:
                     continue
-                first = w[0]
-                if first in ("and", "but", "so", "then") and len(w) > 1:
-                    first = w[1]
-                starts.append(first)
+                conjoined = w[0] in conjunctions
+                if conjoined and len(w) > 1:
+                    subject = w[1]
+                elif conjoined:
+                    continue
+                else:
+                    subject = w[0]
+                starts.append(subject)
+                if idx > 0 and not conjoined:
+                    spliced_subjects.add(subject)
             if len(starts) < 3:
                 continue
-            if any(starts[1:].count(p) >= 2 for p in pronouns):
+            if any(starts[1:].count(p) >= 2 and p in spliced_subjects
+                   for p in pronouns):
                 spliced.append({"line": b["line"], "text": sent[:70]})
 
     # 14-17. Repair artifacts. Every check above measures the draft; these
@@ -883,6 +982,19 @@ def fmt_check(ok):
     return "PASS" if ok else "FAIL"
 
 
+def fmt_state(name, ok):
+    """PASS/FAIL for a gating check, an explicit advisory label otherwise.
+
+    An advisory check that reads "FAIL" next to a layer that says PASS is the
+    fastest way to send a reader back to editing something the evidence says is
+    not a tell, so the label has to say what the number can and cannot do.
+    """
+    if name not in ADVISORY_CHECKS:
+        return fmt_check(ok)
+    return ("ADVISORY, none found" if ok
+            else "ADVISORY, found, does not fail this layer")
+
+
 def render_markdown(report):
     f = report["first_order"]
     s = report["second_order"]
@@ -930,12 +1042,13 @@ def render_markdown(report):
         out.append("    line %d: %s" % (hz["line"], hz["text"]))
     out.append("- Three-clause metronome paragraphs: %d [%s]" % (
         len(s["three_clause_paragraphs"]),
-        fmt_check(s["checks"]["three_clause_rhythm"])))
+        fmt_state("three_clause_rhythm", s["checks"]["three_clause_rhythm"])))
     out.append("- False-balance framings: %.2f per 1k [%s, limit %.0f]" % (
         s["false_balance_per_1k"], fmt_check(s["checks"]["false_balance"]),
         THRESHOLDS["false_balance_per_1k_max"]))
     out.append("- Hedge-stacked windows: %d [%s]" % (
-        len(s["hedge_windows"]), fmt_check(s["checks"]["hedge_stacking"])))
+        len(s["hedge_windows"]),
+        fmt_state("hedge_stacking", s["checks"]["hedge_stacking"])))
     out.append("- Symmetric lists: %d [%s]" % (
         len(s["symmetric_lists"]), fmt_check(s["checks"]["symmetric_lists"])))
     repeat_note = ", verbatim repeat" if s["wrapup_verbatim_repeat"] else ""
@@ -955,7 +1068,8 @@ def render_markdown(report):
         THRESHOLDS["flat_paragraph_sd_min"], len(s["flat_paragraphs"]),
         flat_state))
     out.append("- Spliced subject triads: %d [%s]" % (
-        len(s["spliced_triads"]), fmt_check(s["checks"]["spliced_triads"])))
+        len(s["spliced_triads"]),
+        fmt_state("spliced_triads", s["checks"]["spliced_triads"])))
     for sp in s["spliced_triads"]:
         out.append("    line %d: %s" % (sp["line"], sp["text"]))
     out.append("- Repeated candour openers: %d [%s, limit %d each]" % (
@@ -968,18 +1082,19 @@ def render_markdown(report):
             ", ".join(str(n) for n in tc["lines"])))
     out.append("- Amputated purpose clauses: %d [%s]" % (
         len(s["amputated_purpose_clauses"]),
-        fmt_check(s["checks"]["amputated_purpose"])))
+        fmt_state("amputated_purpose", s["checks"]["amputated_purpose"])))
     for ap in s["amputated_purpose_clauses"]:
         out.append("    line %d: %s" % (ap["line"], ap["text"]))
     out.append("- Staccato runs (%d+ sentences of %d words or fewer): %d [%s]" % (
         THRESHOLDS["staccato_run_min"], THRESHOLDS["staccato_max_words"],
-        len(s["staccato_runs"]), fmt_check(s["checks"]["staccato_runs"])))
+        len(s["staccato_runs"]),
+        fmt_state("staccato_runs", s["checks"]["staccato_runs"])))
     for st in s["staccato_runs"]:
         out.append("    line %d: %s" % (
             st["line"], " / ".join(str(n) for n in st["lengths"])))
     out.append("- Repeated sentence openers (%d+ running): %d [%s]" % (
         THRESHOLDS["opener_run_min"], len(s["repeated_openers"]),
-        fmt_check(s["checks"]["repeated_openers"])))
+        fmt_state("repeated_openers", s["checks"]["repeated_openers"])))
     for ro in s["repeated_openers"]:
         out.append("    line %d: \"%s\" opens %d sentences running" % (
             ro["line"], ro["opener"], ro["count"]))
@@ -987,7 +1102,8 @@ def render_markdown(report):
         out.append("    line %d: \"%s\" x%d inside an answer block, not counted" % (
             ab["line"], ab["opener"], ab["count"]))
     out.append("- Adjacent echoes: %d [%s]" % (
-        len(s["adjacent_echoes"]), fmt_check(s["checks"]["adjacent_echoes"])))
+        len(s["adjacent_echoes"]),
+        fmt_state("adjacent_echoes", s["checks"]["adjacent_echoes"])))
     for ec in s["adjacent_echoes"]:
         out.append("    line %d: \"%s...\" twice running" % (
             ec["line"], ec["opener"]))

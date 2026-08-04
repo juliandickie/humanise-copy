@@ -8,8 +8,49 @@ verify loop: no clean detector report, no "done".
 
 ## Status
 
-v0.5.0, public at github.com/juliandickie/humanise-copy (MIT), listed in the
+v0.6.0, public at github.com/juliandickie/humanise-copy (MIT), listed in the
 outfit and loadout marketplaces.
+
+0.6.0 is the correction pass. Seven more checks became advisory, not on taste
+but on measurement, after the skill flagged ordinary multi-clause prose as an AI
+tell on the ASDE launch broadcasts and Julian ruled every example fine.
+
+Every second-order check was run over three human corpora that pre-date language
+models (Austen 1817, Darwin 1859, fifteen Paul Graham essays 2004 to 2015) and
+over the labelled ASDE before-and-after blog set. Fire rate on AI drafts against
+fire rate on untouched Paul Graham essays: `three_clause_rhythm` 82% against
+80%, `adjacent_echoes` 41% against 53%, `spliced_triads` and `repeated_openers`
+23% against 20%, and three checks fully inverted - `staccato_runs` 18% against
+47%, `amputated_purpose` 0% against 40%, `hedge_stacking` 0% against 20%. An
+inverted check tells you to edit away the things that make writing read human.
+
+`three_clause_rhythm` was the one that triggered the review. It counts commas
+and never compares one sentence to another, so it cannot detect a metronome,
+which by definition is repetition. A narrowed rewrite keying on true clause
+boundaries, matched lengths and consecutive runs was built and swept across the
+whole parameter space: best separation anywhere was plus 0.05, several settings
+inverted at up to minus 0.77. There is no threshold to raise it to.
+
+Three measurement faults were fixed at the same time, and they corrupt every
+check that reads a sentence: thousands separators counted as clause boundaries
+(`$5,600 instead of $7,000` scored three commas), markdown emphasis merged
+sentences so `**The rate ends.** The next...` stayed one, and `words_of` dropped
+digits so B1, B6 and B10 all collapsed to a bare "b". `spliced_triads` also had
+its logic corrected: it stripped the leading "and" or "so" and then took the
+subject, which guaranteed every correctly punctuated compound sentence fired.
+
+Effect on the second-order verdict: Paul Graham essays went from 14 of 15
+failing to 1 of 15, AI drafts from 22 of 22 failing to 13 of 22. The cost is
+real and worth stating - the detector now misses 9 of 22 AI drafts it used to
+fail. It was failing them on checks that also failed 14 of 15 human essays, so
+those were never detections.
+
+**The teeth floor is now exactly met.** The fixture failed 12 second-order
+gating checks at 0.5.0 and fails 8 at 0.6.0, against a floor of 8. The test
+passes with no margin left, so the next demotion of any second-order check
+breaks it deliberately. Full evidence, method and the audit of what the gated
+metric did to the 22 posts is in
+`docs/dev/2026-08-05-clause-rhythm-checks-have-no-signal.md`.
 
 0.5.0 makes `flat_paragraphs` advisory too, finishing what 0.4.0 started.
 `ADVISORY_CHECKS` now holds both paragraph-boundary checks, and the rule behind
@@ -45,9 +86,11 @@ the prose reads, and it pulls against house styles that cap paragraphs at 2 to
 drowned: four genuine metronome and flat-rhythm faults surfaced underneath on
 that same set and were fixed. Mechanism is the `ADVISORY_CHECKS` frozenset in
 `scripts/detect.py`; doctrine is in reference 02 under "The paragraph-boundary
-checks are advisory, not gates". The generalisation worth carrying to any check added
-later: separate the signals that measure the prose from the signals that
-measure the layout, and only gate on the first group. Full write-up, including
+checks in particular". The generalisation drawn at the time, separate the
+signals that measure the prose from the signals that measure the layout and
+only gate on the first group, was superseded at 0.6.0: measurement put four
+prose-measuring checks in the untrustworthy group. The line that held is
+document-scale distribution against sentence-level craft. Full write-up, including
 how three subagents independently gamed the comma-counting three-clause check
 and the counter-metric that caught them, is in
 [docs/dev/2026-07-27-paragraph-shape-advisory.md](docs/dev/2026-07-27-paragraph-shape-advisory.md).
@@ -183,15 +226,31 @@ then humanise-copy, then ship. Always last; any later edit reopens the pass.
    both. Until then, trust the cache's own `plugin.json` and `detect.py` over
    the manifest.
 
-Shipped and needing nothing further: **v0.5.0 published (89c5638 on main)**,
-with the installed cache fast-forwarded to match and verified from its own path
-(62 tests green, `ADVISORY_CHECKS` holding both checks, second-order returning
-PASS on a document whose only fault is a flat paragraph). The pre-0.5.0 cache
-is backed up alongside it as `0.2.0.bak-20260727-pre-0.5.0`. Also shipped:
+3. Decide what to do about the 22 ASDE launch posts. They were repaired against
+   a gate that measured nothing, and the audit in the 2026-08-05 dev note found
+   roughly 60 sentences edited to satisfy it: 40 kept byte for byte inside
+   paragraphs padded until the denominator moved, and 20 repunctuated until the
+   comma count dropped. Most read fine. Six deleted punctuation that was helping
+   the reader and are listed in the note, worth restoring.
+4. Fold the two dev-doc directories into one. `docs/dev/` holds the 25 July, 27
+   July and 5 August notes; `dev-docs/` holds the 29 and 30 July ones. Nothing
+   depends on either path, so this is a rename plus link sweep.
+5. **v0.6.0 is published on main but is NOT installed.** The skill was taken
+   offline on 4 August for this review and the plugin cache still runs 0.5.0,
+   so the false positives this release fixes are still live in any session using
+   it. Bringing it back needs `/plugin update` in an interactive session, which
+   also fixes item 2.
+
+Shipped and needing nothing further: **v0.6.0 published on main**, 62 tests
+green including the demotion guard, with the corpus evidence in
+`docs/dev/2026-08-05-clause-rhythm-checks-have-no-signal.md`. Before that,
+**v0.5.0 (89c5638)** with the installed cache fast-forwarded to match and
+verified from its own path. The pre-0.5.0 cache is backed up alongside it as
+`0.2.0.bak-20260727-pre-0.5.0`. Also shipped:
 v0.4.0 (310d673) with its dev-docs evidence note (fd2552d), the public repo and
 MIT licence, the copy-school handoff row with its claude.ai upload, and the
 idd-writing-style pre-ship section with its anthropic-skills redeploy. Both
-marketplace listings needed no edit for 0.4.0 or 0.5.0, because they carry no
+marketplace listings needed no edit for 0.4.0, 0.5.0 or 0.6.0, because they carry no
 version and track the repo URL, and their descriptions do not mention the
 checks that changed.
 

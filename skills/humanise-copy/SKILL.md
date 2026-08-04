@@ -148,12 +148,20 @@ tic repeated site-wide.
    invention ([03-voice-preserving-repair.md](references/03-voice-preserving-repair.md)).
 5. Thresholds are asset-aware. Apply them through the table in reference 02;
    technique a 10x skill prescribed is not a tell.
-6. Advisory checks never fail a layer. `paragraph_shape` measures layout, not
-   language: it is the spread of paragraph word counts, so it moves when a
-   paragraph break moves and the prose does not. It is reported and warned on,
-   never gated, and never a reason to merge readable paragraphs back into a
-   wall of text (reference 02, "Paragraph-shape SD is advisory, not a gate").
-7. Any edit after the hygiene pass reopens the hygiene pass.
+6. Advisory checks never fail a layer, and never on their own justify an edit.
+   Nine of them now: `paragraph_shape` and `flat_paragraphs` measure layout
+   rather than language, and `three_clause_rhythm`, `adjacent_echoes`,
+   `spliced_triads`, `repeated_openers`, `staccato_runs`, `amputated_purpose`
+   and `hedge_stacking` were demoted in 0.6.0 because they do not separate
+   human prose from machine prose. The last three fire MORE on human writing
+   than on AI drafts. Treat an advisory line as a prompt to read the passage,
+   and repair only what your ear confirms (reference 02, "What the advisory
+   demotions mean").
+7. A green detector is not a finished piece, and a metric driven to zero is a
+   warning. The 27 July run cleared `three_clause_rhythm` on all 22 posts by
+   padding paragraphs until the denominator moved, leaving the flagged
+   sentences untouched. If a number went to zero, check that the prose changed.
+8. Any edit after the hygiene pass reopens the hygiene pass.
 
 ## Common Mistakes
 

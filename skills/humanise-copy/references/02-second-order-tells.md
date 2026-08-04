@@ -12,26 +12,78 @@ when used deliberately (see the asset table at the end).
 
 ## The structural patterns
 
-| # | Pattern | Flag at | Repair move |
-|---|---------|---------|-------------|
-| 1 | Question-cadence H2s - every heading a question | above 70% of H2s | Rewrite to a mix: statements, noun phrases, and a question only where the section genuinely answers one |
-| 2 | "Here's..." paragraph openers | more than 2 | Check the voice whitelist FIRST (a signature "Here's the thing" stays); vary or delete the rest |
-| 3 | Three-clause metronome - sentence after sentence shaped [clause], [clause], [clause] | half the sentences in a paragraph | Break the rhythm: cut one sentence to a fragment, let another run long, merge two |
-| 4 | False-balance framing - "While X, also Y" with no real contrast | above 2 per 1,000 words | Keep only genuine contrasts; otherwise state the single true thing plainly |
-| 5 | Hedge stacking - may, often, typically piled into one breath | more than 2 hedges in any 20-word window | Choose the one honest hedge and delete the rest. Measured is one qualifier, not three |
-| 6 | Symmetric list bloat - every item the same length and shape | word-count SD below 5 across 3+ items | Vary depth by importance: small items get a line, the big item gets a short paragraph |
-| 7 | Wrap-up questions - "What does this mean for you?" closing sections | more than 2 | Cut it, or actually answer it in the next sentence |
-| 8 | Capsule transitions - sections opening "First,..." "Next,..." "Additionally,..." | above 50% of section openers | Bury the transition inside the sentence, or trust the heading to carry the sequence |
-| 9 | Insight telegraphing - "The key insight is...", "What's important here is..." | any | Delete the frame, keep the insight. The sentence is stronger standing alone |
-| 10 | Rhythmic flatness | flat paragraphs, sentence-length SD under 4 (ADVISORY, see below), opening-word top-3 share above 25%, paragraph-shape SD under 25 on 8+ paragraphs (ADVISORY, see below) | Vary deliberately: a one-line paragraph after a dense one, different sentence openers, unequal section weights |
-| 11 | Spliced subject triads - "It runs..., it puts..., and it ends..." | the same pronoun subject restated 2 or more times across comma-spliced clauses in one sentence | Share the verbs under one subject ("It runs in a fixed order and puts everything in writing"), vary the subjects, or split the sentence |
+Read the GATES column before repairing anything. A check marked ADVISORY was
+measured against human prose written before language models existed and did not
+separate. It reports, it never fails a layer, and it is never on its own a
+reason to edit a sentence. The evidence is in
+`docs/dev/2026-08-05-clause-rhythm-checks-have-no-signal.md` and the summary is
+under "What the advisory demotions mean" below.
 
-## The paragraph-boundary checks are advisory, not gates
+| # | Pattern | Flag at | Gates | Repair move |
+|---|---------|---------|-------|-------------|
+| 1 | Question-cadence H2s - every heading a question | above 70% of H2s | yes | Rewrite to a mix: statements, noun phrases, and a question only where the section genuinely answers one |
+| 2 | "Here's..." paragraph openers | more than 2 | yes | Check the voice whitelist FIRST (a signature "Here's the thing" stays); vary or delete the rest |
+| 3 | Three-clause metronome - sentence after sentence shaped [clause], [clause], [clause] | half the sentences in a paragraph | ADVISORY | Do not repair on this number alone. It counts commas and never compares one sentence to another, so it cannot see the repetition its name describes |
+| 4 | False-balance framing - "While X, also Y" with no real contrast | above 2 per 1,000 words | yes | Keep only genuine contrasts; otherwise state the single true thing plainly |
+| 5 | Hedge stacking - may, often, typically piled into one breath | more than 2 hedges in any 20-word window | ADVISORY | Fires more on human prose than on AI drafts. If a real triple-hedge is there, keep the one honest qualifier; otherwise leave it |
+| 6 | Symmetric list bloat - every item the same length and shape | word-count SD below 5 across 3+ items | yes | Vary depth by importance: small items get a line, the big item gets a short paragraph. Parallel CTA and benefit lists in conversion copy are exempt, see the asset table |
+| 7 | Wrap-up questions - "What does this mean for you?" closing sections | more than 2 | yes | Cut it, or actually answer it in the next sentence |
+| 8 | Capsule transitions - sections opening "First,..." "Next,..." "Additionally,..." | above 50% of section openers | yes | Bury the transition inside the sentence, or trust the heading to carry the sequence |
+| 9 | Insight telegraphing - "The key insight is...", "What's important here is..." | any | yes | Delete the frame, keep the insight. The sentence is stronger standing alone |
+| 10 | Rhythmic flatness | opening-word top-3 share above 25% (GATES, the strongest signal in this layer after paragraph shape); flat paragraphs, sentence-length SD under 4 (ADVISORY); paragraph-shape SD under 25 on 8+ paragraphs (ADVISORY) | mixed | Vary openers deliberately. For the two advisory members, vary only if the page genuinely looks uniform to a reader |
+| 11 | Spliced subject triads - "It runs..., it puts..., and it ends..." | the same pronoun subject restated 2 or more times in one sentence, with at least one restatement at a genuine splice | ADVISORY | Share the verbs under one subject, vary the subjects, or split the sentence. A sentence conjoined at every juncture ("We carry X, and we review Y, so we can Z") is not a splice and is not a finding |
 
-Two checks here measure layout rather than language, and neither can fail a
-layer on its own: `paragraph_shape` (since 0.4.0) and `flat_paragraphs`
-(since 0.5.0). Both are computed per paragraph, so identical prose scores
-differently depending only on where the breaks fall.
+## What the advisory demotions mean
+
+Nine checks report without gating. Two are layout checks (`paragraph_shape`
+since 0.4.0, `flat_paragraphs` since 0.5.0). Seven more were demoted in 0.6.0
+on measurement, after every second-order check was run over three human corpora
+that pre-date language models (Austen 1817, Darwin 1859, fifteen Paul Graham
+essays 2004 to 2015) and over the labelled ASDE before-and-after blog set.
+
+Fire rate on AI drafts against fire rate on untouched Paul Graham essays:
+
+| Check | AI draft | Human | Result |
+|---|---|---|---|
+| three_clause_rhythm | 82% | 73% | no signal |
+| adjacent_echoes | 41% | 53% | no signal |
+| spliced_triads | 23% | 20% | no signal |
+| repeated_openers | 23% | 20% | no signal |
+| staccato_runs | 18% | 47% | inverted |
+| amputated_purpose | 0% | 40% | inverted |
+| hedge_stacking | 0% | 20% | inverted |
+
+An inverted check fires MORE on human prose than on machine prose. Those three
+were telling you to edit away the things that make writing read as human:
+punch (`staccato_runs` fires on runs of three-word sentences), ordinary
+discourse "So" (`amputated_purpose` fires on "So you could say that using Lisp
+was an experiment"), and honest qualification.
+
+`three_clause_rhythm` is the one that caused the 4 August review. It counts
+commas, never compares one sentence to another, and so cannot detect a
+metronome, which by definition is repetition. A narrowed rewrite keying on true
+clause boundaries, matched sentence lengths and consecutive runs was built and
+swept across the whole parameter space: the best separation available anywhere
+was plus 0.05, and several settings inverted at up to minus 0.77. There is no
+threshold to raise it to, because clause density tracks how considered the
+prose is, not who wrote it.
+
+Beware the shape of the evidence that made it look valid. On the 27 July blog
+set the check separated 18 of 22 before against 0 of 22 after, which looks
+perfect and is Goodhart's law. A repaired corpus sitting at 0.0% against a
+human baseline of 7% is not clean, it is over-edited, and the flagged sentences
+had survived byte for byte while agents padded the paragraph until the
+denominator cleared the gate. When a gated metric goes to zero, suspect the
+gate.
+
+**What none of this means.** All nine still measure, still report, still warn.
+A genuinely metronomic run of sentences is still a real tell. What changed is
+who decides: a human reading the warning, not a build failing on a number.
+
+## The paragraph-boundary checks in particular
+
+`paragraph_shape` and `flat_paragraphs` are computed per paragraph, so
+identical prose scores differently depending only on where the breaks fall.
 
 `paragraph_shape` is the standard deviation of paragraph WORD counts, so it
 responds to where the paragraph breaks fall, not to how the sentences read.
@@ -66,19 +118,29 @@ made. Read it the same way: if a run of sentences is flat AND nothing structural
 is forcing it, vary the lengths; if the flatness IS the parallel, keep it and
 move on.
 
-**What neither demotion means.** Both checks still measure, still report, still
-warn. A genuinely uniform paragraph architecture and a genuinely metronomic run
-of sentences are real AI tells. What changed is who decides: a human reading the
-warning, not a build failing on a number. When the layout noise was removed from
-the 22-post set, four genuine metronome and flat-rhythm faults surfaced
-underneath and were fixed, which is the argument for demoting these rather than
-deleting them.
+When the layout noise was removed from the 22-post set, four genuine metronome
+and flat-rhythm faults surfaced underneath and were fixed, which is the argument
+for demoting these rather than deleting them.
 
-The general lesson is worth carrying to any check added later. Split the report
-in your head into signals that measure the prose (trigger phrases, trigger
-density, burstiness, opening-word share, staccato runs, spliced triads, repeated
-openers, adjacent echoes) and signals that measure the layout. The first group
-tells you whether it reads machine-made. The second is context.
+The general lesson is worth carrying to any check added later, and 0.6.0
+rewrote it. The original split was prose signals against layout signals, and it
+put staccato runs, spliced triads, repeated openers and adjacent echoes in the
+trustworthy group. Measurement put all four in the untrustworthy one. The line
+that actually holds is different:
+
+- **Checks that discriminate** measure what a writer does not consciously
+  control across a whole document. Word choice (trigger phrases, trigger
+  density) and document-scale distribution (opening-word share, paragraph
+  shape). A writer cannot feel that 26% of their sentences open on the same
+  three words.
+- **Checks that do not discriminate** measure sentence-level craft. Clause
+  density, sentence length, comma placement, local repetition. That is exactly
+  what a good writer varies on purpose and what a careful reader notices first,
+  which is why human prose scores like AI prose on all of it.
+
+If a proposed check can be satisfied by editing one sentence, it is probably in
+the second group. Measure it against a human corpus before it is allowed to
+gate anything.
 
 ## Repair artifacts
 
@@ -89,13 +151,18 @@ detector, and still leave damage an ear caught
 ([03-voice-preserving-repair.md](03-voice-preserving-repair.md) has the
 repair moves that prevent them).
 
-| # | Pattern | Flag at | Repair move |
-|---|---------|---------|-------------|
-| 12 | Repeated candour openers - "Honestly," opening sentence after sentence | the same opener more than twice in a file | Vary it or cut it. One is register; three is a tic the writer cannot hear because each edit looked fine alone |
-| 13 | Amputated purpose clauses - "So the team can support them." standing alone | a sentence opening "So" plus a subject plus an ability modal | Reattach it to the sentence it serves, or recast as "That way, ..." |
-| 14 | Staccato runs - chop traded for metronome | 3 or more consecutive sentences of 6 words or fewer | Merge two, or let one run long. Note that burstiness, flat-paragraph SD and paragraph-shape SD all IMPROVE when copy is chopped, so no variance check can see this |
-| 15 | Repeated sentence openers - "Ask for... Ask how... Ask whether..." | 3 or more consecutive sentences on one first word, second words varying, NOT inside an answer block | Vary the verb (Request, Find out, Check, Confirm, Insist, Establish). Identical second words are anaphora and are left alone. See the answer-block exemption below before repairing anything under a question heading |
-| 16 | Adjacent echoes - "This guide... This guide..." | a pair of consecutive sentences sharing their first two words | Pronoun the second, or restructure it. A run of 3 or more is anaphora and is not flagged |
+Only check 12 still gates. The other four were demoted in 0.6.0 on the corpus
+evidence above, and 13 and 14 fire more on human prose than on machine prose.
+They are still the right things to LOOK for on a re-run; they are no longer
+things a number can decide.
+
+| # | Pattern | Flag at | Gates | Repair move |
+|---|---------|---------|-------|-------------|
+| 12 | Repeated candour openers - "Honestly," opening sentence after sentence | the same opener more than twice in a file | yes | Vary it or cut it. One is register; three is a tic the writer cannot hear because each edit looked fine alone |
+| 13 | Amputated purpose clauses - "So the team can support them." standing alone | a sentence opening "So" plus a subject plus an ability modal | ADVISORY | Reattach it to the sentence it serves, or recast as "That way, ...". Read the sentence before it first: the check cannot tell a severed purpose clause from an ordinary discourse "So", and it fires on 40% of human essays |
+| 14 | Staccato runs - chop traded for metronome | 3 or more consecutive sentences of 6 words or fewer | ADVISORY | Merge two, or let one run long, but only if the run is genuinely chop. Short runs are a human signature: this fires on 47% of Paul Graham essays and 18% of AI drafts. Burstiness, flat-paragraph SD and paragraph-shape SD all IMPROVE when copy is chopped, so no variance check can see the difference either |
+| 15 | Repeated sentence openers - "Ask for... Ask how... Ask whether..." | 3 or more consecutive sentences on one first word, second words varying, NOT inside an answer block | ADVISORY | Vary the verb (Request, Find out, Check, Confirm, Insist, Establish). Identical second words are anaphora and are left alone. See the answer-block exemption below before repairing anything under a question heading |
+| 16 | Adjacent echoes - "This guide... This guide..." | a pair of consecutive sentences sharing their first two words | ADVISORY | Pronoun the second, or restructure it. A run of 3 or more is anaphora and is not flagged. Contrastive and parallel pairs ("They want X. They want Y.") are technique and stay |
 
 Checks 15 and 16 read the paragraph, not the document. The opening-word share
 in check 10 is a document-wide percentage, so a run packed into one paragraph
